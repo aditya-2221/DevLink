@@ -24,9 +24,9 @@ app.use(cookieParser());
 
 
 //routes
-import userRouter from "./routes/user.routes";
-
+import userRouter from "./routes/user.routes.js";
+import projectRouter from "./routes/project.routes.js"
 //routes declaration
 app.use("/api/v1/users",userRouter)  // takes to https://localhost:8000/api/v1/users and furhter routes of user are added after /users
-
+app.use("/api/v1/projects",projectRouter)
 export default app;
