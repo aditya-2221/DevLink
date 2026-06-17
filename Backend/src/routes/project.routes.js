@@ -8,10 +8,13 @@ import {
     updateProject,
     deleteProject,
     likeProject,
-    unlikeProject
+    unlikeProject,
+    addBookmark,
+    removeBookmark,
+    getTrendingProjects
 } from "../controllers/project.controller.js";
 
-const router = Router()
+const router = Router();
 
 router.route("/")
     .post(
@@ -19,10 +22,12 @@ router.route("/")
         upload.array("images", 5),
         createProject
     )
-    .get(getAllProjects);
+    .get(verifyJWT,getAllProjects);
+
+router.route("/trending").get(getTrendingProjects)
 
 router.route("/:projectId")
-    .get(getProjectById)
+    .get(verifyJWT,getProjectById)
     .patch(
         verifyJWT,
         upload.array("images", 5),
@@ -37,4 +42,8 @@ router.route("/:projectId/like")
     .post(verifyJWT, likeProject)
     .delete(verifyJWT, unlikeProject);
 
-export default router
+router.route("/:projectId/bookmark")
+    .post(verifyJWT, addBookmark)
+    .delete(verifyJWT, removeBookmark);
+
+export default router;

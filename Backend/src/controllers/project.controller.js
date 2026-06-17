@@ -171,8 +171,8 @@ const getAllProjects = asyncHandler(async (req, res) => {
                 isLiked: {
                     $in: [req.user._id, "$likes"]
                 },
-                isBookmarked:{
-                    $in:[req.user._id,"$bookmarks"]
+                isBookmarked: {
+                    $in: [req.user._id, "$bookmarks"]
                 }
             }
         },
@@ -197,7 +197,7 @@ const getAllProjects = asyncHandler(async (req, res) => {
                 likesCount: 1,
                 isLiked: 1,
 
-                isBookmarked:1,
+                isBookmarked: 1,
 
                 createdAt: 1,
                 updatedAt: 1
@@ -267,8 +267,8 @@ const getProjectById = asyncHandler(async (req, res) => {
                 isLiked: {
                     $in: [req.user._id, "$likes"]
                 },
-                isBookmarked:{
-                    $in:[req.user._id,"$bookmarks"]
+                isBookmarked: {
+                    $in: [req.user._id, "$bookmarks"]
                 }
 
             }
@@ -290,7 +290,7 @@ const getProjectById = asyncHandler(async (req, res) => {
                 likesCount: 1,
                 isLiked: 1,
 
-                isBookmarked:1,
+                isBookmarked: 1,
 
                 createdAt: 1
             }
@@ -694,7 +694,84 @@ const removeBookmark = asyncHandler(async (req, res) => {
     );
 });
 
+const getTrendingProjects = asyncHandler(async (req, res) => {
+    const leaderboard = await Project.aggregate([
+        {
+            $addFields: {
+                likesCount: {
+                    $size: "$likes"
+                },
+                bookmarksCount: {
+                    $size: "$bookmarks"
+                },
+                commentsCount: {
+                    $size: "$comments"
+                }
+            }
+        },
+        {
+            $addFields: {
+                trendingScore: {
+                    $add: [
+                        { $multiply: ["$likesCount", 2] },
+                        { $multiply: ["$bookmarksCount", 3] },
+                        "$commentsCount"
+                    ]
+                }
+            }
+        },
+        {
+            $sort: {
+                trendingScore: -1,
+                createdAt: -1
+            }
+        },
+        {
+            $limit: 10
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields:{
+                owner:{
+                    $first:"$owner"
+                }
+            }
+        },
+        {
+            $project: {
+                _id:1,
+                title: 1,
+                owner: 1,
+                likesCount: 1,
+                bookmarksCount: 1,
+                commentsCount: 1,
+                trendingScore: 1,
+            }
+        }
+    ])
+
+
+    return res.status(200).json(new ApiResponse(200, leaderboard, "Trending projects fetched successfully"))
+
+})
+
 export {
     createProject, getAllProjects, getProjectById, updateProject,
-    deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment, deleteComment,addBookmark,removeBookmark
+    deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment, deleteComment, addBookmark, removeBookmark,getTrendingProjects
 }
