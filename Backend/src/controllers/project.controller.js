@@ -771,6 +771,7 @@ const getTrendingProjects = asyncHandler(async (req, res) => {
 
 })
 
+
 export {
     createProject, getAllProjects, getProjectById, updateProject,
     deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment, deleteComment, addBookmark, removeBookmark,getTrendingProjects
