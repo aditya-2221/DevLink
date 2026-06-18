@@ -8,8 +8,8 @@ import { Project } from "../models/project.model.js"
 import { pipeline } from "stream"
 import { Recruitment } from "../models/recruitment.model.js"
 import { Application } from "../models/application.model.js"
-import { title } from "process"
 import mongoose from "mongoose"
+import { Team } from "../models/team.model.js"
 
 const createRecruitment = asyncHandler(async (req, res) => {
     const {
@@ -330,14 +330,14 @@ const updateRecruitment = asyncHandler(async (req, res) => {
         );
     }
 
-    if ( recruitment.owner.toString() !== req.user._id.toString()) {
+    if (recruitment.owner.toString() !== req.user._id.toString()) {
         throw new ApiError(
             403,
             "Forbidden access to update recruitment"
         );
     }
 
-    if (status &&!["OPEN", "CLOSED"].includes(status)) {
+    if (status && !["OPEN", "CLOSED"].includes(status)) {
         throw new ApiError(
             400,
             "Invalid recruitment status"
@@ -353,7 +353,7 @@ const updateRecruitment = asyncHandler(async (req, res) => {
     }
 
     if (requiredSkills) {
-        recruitment.requiredSkills =requiredSkills;
+        recruitment.requiredSkills = requiredSkills;
     }
 
     if (positions) {
@@ -638,11 +638,44 @@ const acceptApplication = asyncHandler(async (req, res) => {
         await recruitment.save()
     }
 
+    let team = await Team.findOne({
+        project: recruitment.project
+    })
+
+    if (!team) {
+        team = await Team.create({
+            name: `${recruitment.title} Team`,
+            project: recruitment.project,
+            owner: recruitment.createdBy,
+            members: [
+                {
+                    user: recruitment.createdBy,
+                    role: "Lead"
+                }
+            ]
+        })
+    }
+
+    const alreadyMember = team.members.some(
+        member =>
+            member.user.toString() ===
+            application.applicant.toString()
+    )
+
+    if (!alreadyMember) {
+        team.members.push({
+            user: application.applicant,
+            role: "Member"
+        })
+    }
+
+    await team.save()
+
     return res.status(200).json(new ApiResponse(200,
         {
             status: "ACCEPTED",
         },
-        "Application created successfully")
+        "Application accepted successfully")
     )
 
 })
@@ -718,6 +751,8 @@ const rejectApplication = asyncHandler(async (req, res) => {
     );
 });
 
-export { createRecruitment, getAllRecruitments, getRecruitmentById,updateRecruitment,
-    deleteRecruitment, applyToRecruitment, getRecruitmentApplications, acceptApplication, rejectApplication }
+export {
+    createRecruitment, getAllRecruitments, getRecruitmentById, updateRecruitment,
+    deleteRecruitment, applyToRecruitment, getRecruitmentApplications, acceptApplication, rejectApplication
+}
 
