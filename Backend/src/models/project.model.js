@@ -57,8 +57,20 @@ const projectSchema = new Schema(
             ],
             default: "Other"
         },
-    }
+    },{timestamps:true}
 )
+
+projectSchema.index({
+   owner:1
+})
+
+projectSchema.index({
+   category:1
+})
+
+projectSchema.index({
+   createdAt:-1
+})
 
 
 export const Project = mongoose.model("Project", projectSchema)

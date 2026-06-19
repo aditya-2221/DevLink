@@ -2,12 +2,11 @@ import mongoose, { Schema } from "mongoose";
 
 const teamSchema = new Schema({
     name: {
-        type:String,
-        required:true,
-        unqiue : true
+        type: String,
+        required: true,
     },
     description: {
-        type:String
+        type: String
     },
 
     project: {
@@ -37,20 +36,26 @@ const teamSchema = new Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: "User"
         },
-        createdAt: Date
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
     }]
-})
+},{timestamps:true})
 
+
+teamSchema.index({
+    project: 1,
+    name: 1
+}, {
+    unique: true
+})
 teamSchema.index({
     owner: 1
-})
-
-teamSchema.index({
-    project: 1
 })
 
 teamSchema.index({
     "members.user": 1
 })
 
-export const Team = mongoose.model("Team",teamSchema)
+export const Team = mongoose.model("Team", teamSchema)

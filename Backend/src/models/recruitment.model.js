@@ -41,13 +41,23 @@ const recruitmentSchema = new Schema(
             type: String,
             enum: ["OPEN", "CLOSED"],
             default: "OPEN"
+        },
+        acceptedCount: {
+            type: Number,
+            default: 0
         }
     },
     {
         timestamps: true
     }
 );
+recruitmentSchema.index({
+    status: 1
+})
 
+recruitmentSchema.index({
+    owner: 1
+})
 export const Recruitment = mongoose.model(
     "Recruitment",
     recruitmentSchema

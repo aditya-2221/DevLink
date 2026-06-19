@@ -38,8 +38,15 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All fields are required")
     }
 
+
+    const normalizedUsername = username.toLowerCase()
+    const normalizedEmail = email.toLowerCase()
+
     const existingUser = await User.findOne({
-        $or: [{ username }, { email }]
+        $or: [
+            { username: normalizedUsername },
+            { email: normalizedEmail }
+        ]
     })
 
     if (existingUser) {
@@ -68,9 +75,9 @@ const registerUser = asyncHandler(async (req, res) => {
         fullName,
         avatar: avatar.url,
         coverImage: coverImage?.url || "",
-        email,
+        email: normalizedEmail,
         password,
-        username: username.toLowerCase()
+        username: normalizedUsername
     })
 
     const createdUser = await User.findById(user._id).select("-password -refreshToken")
@@ -91,6 +98,13 @@ const loginUser = asyncHandler(async (req, res) => {
             400,
             "Username/email and password are required"
         )
+    }
+
+    if(username){
+        username=username.toLowerCase()
+    }
+    if(email){
+        email=email.toLowerCase()
     }
 
     const user = await User.findOne({
@@ -208,8 +222,15 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body
 
     const user = await User.findById(req.user?._id)
-    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+    
+    if(!oldPassword?.trim()){
+        throw new ApiError(400, "Old password is required")
+    }
+    if(oldPassword===newPassword){
+        throw new ApiError(400,"Old and new passwords are same")
+    }
 
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
     if (!isPasswordCorrect) {
         throw new ApiError(400, "Invalid Password")
     }
@@ -248,7 +269,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
             .filter(Boolean);
     }
 
-    if (fullName !== undefined) updateFields.fullName = fullName;
+    if (fullName !== undefined && !fullName.trim()) updateFields.fullName = fullName;
     if (bio !== undefined) updateFields.bio = bio;
     if (education !== undefined) updateFields.education = education;
     if (github !== undefined) updateFields.github = github;
@@ -305,7 +326,7 @@ const updateEmail = asyncHandler(async (req, res) => {
     });
 
     if (existingMail) {
-        throw new ApiError(401, "Update Failed !!! Email already in use")
+        throw new ApiError(409, "Update Failed !!! Email already in use")
     }
 
     const isPasswordCorrect = await user.isPasswordCorrect(password)
@@ -405,7 +426,7 @@ const userProfile = asyncHandler(async (req, res) => {
         },
         {
             $project: {
-                _id:1,
+                _id: 1,
                 fullName: 1,
                 username: 1,
                 avatar: 1,
@@ -422,18 +443,19 @@ const userProfile = asyncHandler(async (req, res) => {
         }
     ]);
 
-    if(!profile?.length){
-        throw new ApiError(404,"Profile does not exist")
+    if (!profile?.length) {
+        throw new ApiError(404, "Profile does not exist")
     }
 
     return res
-    .status(200)
-    .json(new ApiResponse(200,profile[0],"Profile fetched successfully"))
+        .status(200)
+        .json(new ApiResponse(200, profile[0], "Profile fetched successfully"))
 
 
 })
 
 
-export { registerUser, loginUser, logoutUser, getCurrentUser, refreshAccessToken,
-     changeCurrentPassword, updateAccountDetails, updateEmail,userProfile,updateUserAvatar,updateUserCoverImage
-     }
+export {
+    registerUser, loginUser, logoutUser, getCurrentUser, refreshAccessToken,
+    changeCurrentPassword, updateAccountDetails, updateEmail, userProfile, updateUserAvatar, updateUserCoverImage
+}

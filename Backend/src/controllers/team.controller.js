@@ -10,6 +10,8 @@ import { Recruitment } from "../models/recruitment.model.js"
 import { Application } from "../models/application.model.js"
 import mongoose from "mongoose"
 import { Team } from "../models/team.model.js"
+import { Task } from "../models/task.model.js"
+import { createNotification } from "./notification.controller.js"
 
 const createTeam = asyncHandler(async (req, res) => {
     const { name, description, projectId } = req.body
@@ -280,7 +282,7 @@ const updateTeam = asyncHandler(async (req, res) => {
     if (name) {
         team.name = name.trim()
     }
-    if (description) {
+    if (description !== undefined) {
         team.description = description
     }
 
@@ -317,8 +319,7 @@ const addMember = asyncHandler(async (req, res) => {
     }
 
     const isMember = team.members.some(
-        member =>
-            member.user.toString() === userId
+        member => member.user.toString() === userId
     )
 
     if (isMember) {
@@ -334,6 +335,14 @@ const addMember = asyncHandler(async (req, res) => {
         "members.user",
         "fullName username avatar"
     )
+
+    await createNotification({
+        recipient: userId,
+        sender: req.user._id,
+        type: "TEAM_JOINED",
+        message: `You have been added to ${team.name}`,
+        referenceId: team._id
+    })
 
     return res.status(200).json(new ApiResponse(200, team, "Member added successfully"))
 
@@ -379,6 +388,25 @@ const removeMember = asyncHandler(async (req, res) => {
         member => member.user.toString() !== userId
     )
     await team.save()
+
+    await createNotification({
+        recipient: userId,
+        sender: req.user._id,
+        type: "TEAM_REMOVED",
+        message: `You have been removed from ${team.name}`,
+        referenceId: team._id
+    })
+    await Task.updateMany(
+        {
+            team: teamId,
+            assignedTo: userId
+        },
+        {
+            $unset: {
+                assignedTo: 1
+            }
+        }
+    )
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -406,13 +434,34 @@ const createAnnouncement = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Message cannot be empty")
     }
     team.announcements.push({
-        meassage: message.trim(),
+        content: message.trim(),
         createdBy: req.user._id
     })
 
     await team.save()
 
     const announcement = team.announcements[team.announcements.length - 1]
+
+    const announcementCreator =
+        announcement.createdBy.toString()
+
+    for (const member of team.members) {
+
+        if (
+            member.user.toString() ===
+            announcementCreator
+        ) {
+            continue
+        }
+
+        await createNotification({
+            recipient: member.user,
+            sender: req.user._id,
+            type: "TEAM_ANNOUNCEMENT",
+            message: `New announcement in ${team.name}`,
+            referenceId: announcement._id
+        })
+    }
     return res.status(200).json(new ApiResponse(200, announcement, "Announcement created successfully"))
 
 })
@@ -429,6 +478,24 @@ const deleteTeam = asyncHandler(async (req, res) => {
     if (team.owner.toString() !== req.user._id.toString()) {
         throw new ApiError(403, "Forbidden request to delete team")
     }
+
+    for (const member of team.members) {
+
+        if ( member.user.toString() === req.user._id.toString()) {
+            continue
+        }
+        await createNotification({
+            recipient: member.user,
+            sender: req.user._id,
+            type: "TEAM_DELETED",
+            message: `${team.name} has been deleted`,
+            referenceId: team._id
+        })
+    }
+
+    await Task.deleteMany({
+        team: teamId
+    })
 
     await team.deleteOne()
     return res.status(200).json(new ApiResponse(200, {}, "Team deleted successfully"))

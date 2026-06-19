@@ -6,6 +6,12 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 import jwt, { decode } from "jsonwebtoken"
 import { Project } from "../models/project.model.js"
 import { pipeline } from "stream"
+import { createNotification } from "./notification.controller.js"
+import mongoose from "mongoose"
+import { Recruitment } from "../models/recruitment.model.js"
+import { Application } from "../models/application.model.js"
+import { Team } from "../models/team.model.js"
+import { Task } from "../models/task.model.js"
 import { Comments } from "../models/comments.model.js"
 
 const createProject = asyncHandler(async (req, res) => {
@@ -26,7 +32,19 @@ const createProject = asyncHandler(async (req, res) => {
     if (!description?.trim()) {
         throw new ApiError(400, "Description is required");
     }
-
+    if (category && ![
+        "Web Development",
+        "Mobile Development",
+        "AI/ML",
+        "Blockchain",
+        "Open Source",
+        "Game Development",
+        "Cybersecurity",
+        "DevOps",
+        "Other"
+    ].includes(category)) {
+        throw new ApiError(400, "Invalid category field")
+    }
     const uploadedImages = [];
 
     if (req.files?.length) {
@@ -44,7 +62,7 @@ const createProject = asyncHandler(async (req, res) => {
         }
     }
 
-    const project = await User.create({
+    const project = await Project.create({
         title,
         description,
         techStack,
@@ -263,6 +281,9 @@ const getProjectById = asyncHandler(async (req, res) => {
                 likesCount: {
                     $size: "$likes"
                 },
+                commentsCount: {
+                    $size: "$comments"
+                },
 
                 isLiked: {
                     $in: [req.user._id, "$likes"]
@@ -289,7 +310,7 @@ const getProjectById = asyncHandler(async (req, res) => {
 
                 likesCount: 1,
                 isLiked: 1,
-
+                commentsCount: 1,
                 isBookmarked: 1,
 
                 createdAt: 1
@@ -329,6 +350,19 @@ const updateProject = asyncHandler(async (req, res) => {
         category
     } = req.body;
 
+    if (category && ![
+        "Web Development",
+        "Mobile Development",
+        "AI/ML",
+        "Blockchain",
+        "Open Source",
+        "Game Development",
+        "Cybersecurity",
+        "DevOps",
+        "Other"
+    ].includes(category)) {
+        throw new ApiError(400, "Invalid category field")
+    }
 
     if (title?.trim()) {
         project.title = title;
@@ -404,6 +438,59 @@ const deleteProject = asyncHandler(async (req, res) => {
             await deleteFromCloudinary(image.public_id)
         }
     }
+    await Comments.deleteMany({
+        project: project._id
+    })
+
+    await Comment.deleteMany({
+        project: project._id
+    })
+
+    const recruitments = await Recruitment.find({
+        project: project._id
+    })
+
+    const recruitmentIds =
+        recruitments.map(r => r._id)
+
+    await Application.deleteMany({
+        recruitment: {
+            $in: recruitmentIds
+        }
+    })
+
+    await Recruitment.deleteMany({
+        project: project._id
+    })
+
+    const team = await Team.findOne({
+        project: project._id
+    })
+
+    if (team) {
+        for (const member of team.members) {
+
+            if (member.user.toString() ===req.user._id.toString()) {
+                continue
+            }
+
+            await createNotification({
+                recipient: member.user,
+                sender: req.user._id,
+                type: "PROJECT_DELETED",
+                message: `${project.title} has been deleted`,
+                referenceId: project._id
+            })
+        }
+
+        await Task.deleteMany({
+            team: team._id
+        })
+
+        await team.deleteOne()
+    }
+
+    await project.deleteOne()
 
     await project.deleteOne()
 
@@ -433,13 +520,31 @@ const likeProject = asyncHandler(async (req, res) => {
     )
 
     if (!project) {
-        const exists = await Project.exists({ _id: projectId });
+        const existingProject = await Project.findById(projectId);
 
-        if (!exists) {
+        if (!existingProject) {
             throw new ApiError(404, "Project not found");
         }
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    isLiked: true,
+                    likesCount: existingProject.likes.length
+                },
+                "Project already liked"
+            )
+        );
     }
 
+    await createNotification({
+        recipient: project.owner,
+        sender: req.user._id,
+        type: "PROJECT_LIKED",
+        message: `${req.user.fullName} liked your project`,
+        referenceId: project._id
+    })
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -505,7 +610,7 @@ const addComment = asyncHandler(async (req, res) => {
     }
 
     const comment = await Comments.create({
-        content,
+        content: content.trim(),
         owner: user._id,
         project: projectId
     })
@@ -519,6 +624,13 @@ const addComment = asyncHandler(async (req, res) => {
         }
     })
 
+    await createNotification({
+        recipient: project.owner,
+        sender: req.user._id,
+        type: "PROJECT_COMMENTED",
+        message: `${req.user.fullName} commented on your project`,
+        referenceId: project._id
+    })
     return res.status(201).json(new ApiResponse(201, comment, "Comment created successfully"))
 })
 
@@ -597,6 +709,10 @@ const updateComment = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Comment cannot be updated to empty")
     }
 
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+        throw new ApiError(400, "Comment ID invalid")
+    }
+
     const comment = await Comments.findById(commentId)
     if (!comment) {
         throw new ApiError(404, "No comment found")
@@ -615,6 +731,10 @@ const updateComment = asyncHandler(async (req, res) => {
 
 const deleteComment = asyncHandler(async (req, res) => {
     const { commentId } = req.params
+
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+        throw new ApiError(400, "Comment ID invalid")
+    }
     const comment = await Comments.findById(commentId)
     if (!comment) {
         throw new ApiError(404, "No comment found")
@@ -633,7 +753,9 @@ const deleteComment = asyncHandler(async (req, res) => {
 
     }, { new: true })
 
-    return res.status(204).json(new ApiResponse(204, {}, "Comment deleted successfully"))
+
+
+    return res.status(200).json(new ApiResponse(200, {}, "Comment deleted successfully"))
 
 
 
@@ -747,15 +869,15 @@ const getTrendingProjects = asyncHandler(async (req, res) => {
             }
         },
         {
-            $addFields:{
-                owner:{
-                    $first:"$owner"
+            $addFields: {
+                owner: {
+                    $first: "$owner"
                 }
             }
         },
         {
             $project: {
-                _id:1,
+                _id: 1,
                 title: 1,
                 owner: 1,
                 likesCount: 1,
@@ -774,5 +896,5 @@ const getTrendingProjects = asyncHandler(async (req, res) => {
 
 export {
     createProject, getAllProjects, getProjectById, updateProject,
-    deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment, deleteComment, addBookmark, removeBookmark,getTrendingProjects
+    deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment, deleteComment, addBookmark, removeBookmark, getTrendingProjects
 }

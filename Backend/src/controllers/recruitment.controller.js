@@ -10,6 +10,7 @@ import { Recruitment } from "../models/recruitment.model.js"
 import { Application } from "../models/application.model.js"
 import mongoose from "mongoose"
 import { Team } from "../models/team.model.js"
+import { createNotification } from "./notification.controller.js"
 
 const createRecruitment = asyncHandler(async (req, res) => {
     const {
@@ -19,6 +20,24 @@ const createRecruitment = asyncHandler(async (req, res) => {
         requiredSkills,
         positions
     } = req.body
+    if (!title?.trim()) {
+        throw new ApiError(400, "Title is required")
+    }
+
+    if (!description?.trim()) {
+        throw new ApiError(400, "Description is required")
+    }
+
+    if (positions !== undefined && positions < 1) {
+        throw new ApiError(
+            400,
+            "Positions must be greater than 0"
+        )
+    }
+
+    if (!mongoose.Types.ObjectId, isValid(projectId)) {
+        throw new ApiError(400, "Invalid project ID")
+    }
 
     const project = await Project.findById(projectId)
 
@@ -26,7 +45,7 @@ const createRecruitment = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Project not found")
     }
 
-    if (project.owner.toString() !== req.user._id.toString) {
+    if (project.owner.toString() !== req.user._id.toString()) {
         throw new ApiError(
             403,
             "Only project owner can recruit"
@@ -344,6 +363,13 @@ const updateRecruitment = asyncHandler(async (req, res) => {
         );
     }
 
+    if (positions !== undefined && positions < 1) {
+        throw new ApiError(
+            400,
+            "Positions must be greater than 0"
+        )
+    }
+
     if (title) {
         recruitment.title = title;
     }
@@ -423,6 +449,17 @@ const deleteRecruitment = asyncHandler(async (req, res) => {
         recruitment: recruitmentId
     });
 
+    const team = await Team.findOne({
+        project: recruitment.project
+    })
+
+    if (team) {
+        throw new ApiError(
+            400,
+            "Recruitment cannot be deleted after team formation"
+        )
+    }
+
     await recruitment.deleteOne();
 
     return res.status(200).json(
@@ -487,6 +524,13 @@ const applyToRecruitment = asyncHandler(async (req, res) => {
         message
     }
     )
+    await createNotification({
+        recipient: recruitment.owner,
+        sender: req.user._id,
+        type: "APPLICATION_RECEIVED",
+        message: `${req.user.fullName} applied to your recruitment`,
+        referenceId: application._id
+    })
 
     return res.status(201).json(
         new ApiResponse(
@@ -538,20 +582,10 @@ const getRecruitmentApplications = asyncHandler(async (req, res) => {
             }
         },
         {
-            $lookup: {
-                from: "users",
-                localField: "applicant",
-                foreignField: "_id",
-                as: "applicant",
-                pipeline: [
-                    {
-                        $project: {
-                            username: 1,
-                            avatar: 1,
-                            skills: 1
-                        }
-                    }
-                ]
+            $addFields: {
+                applicant: {
+                    $first: "$applicant"
+                }
             }
         },
         {
@@ -566,7 +600,7 @@ const getRecruitmentApplications = asyncHandler(async (req, res) => {
         }
     ])
 
-    return res.status(200).json(new ApiResponse((200, applications, "Applications fetched successfully")))
+    return res.status(200).json(new ApiResponse(200, applications, "Applications fetched successfully"))
 
 })
 
@@ -575,109 +609,169 @@ const acceptApplication = asyncHandler(async (req, res) => {
     const { applicationId } = req.params
 
     if (!mongoose.Types.ObjectId.isValid(applicationId)) {
-        throw new ApiError(400, "Invalid application id");
+        throw new ApiError(400, "Invalid application id")
     }
 
-    const application = await Application.findById(applicationId)
-    if (!application) {
-        throw new ApiError(404, "Application not found")
-    }
+    const session = await mongoose.startSession()
 
-    const recruitment = await Recruitment.findById(application.recruitment)
-    if (!recruitment) {
-        throw new ApiError(
-            404,
-            "Recruitment not found"
-        )
-    }
+    try {
+        session.startTransaction()
 
-    if (recruitment.owner.toString() !== req.user._id.toString()) {
-        throw new ApiError(403, "Forbidden access to handle recruitment")
-    }
+        const application = await Application.findById(
+            applicationId
+        ).session(session)
 
-    if (recruitment.status === "CLOSED") {
-        throw new ApiError(
-            400,
-            "Recruitment is closed"
-        )
-    }
-
-    if (application.status === "ACCEPTED") {
-        throw new ApiError(400, "application already accepted")
-    }
-    if (application.status === "REJECTED") {
-        throw new ApiError(400, "Cannot accept rejected application")
-    }
-
-    const acceptedApplications = await Application.countDocuments({
-        recruitment: recruitment._id,
-        status: "ACCEPTED"
-    })
-
-    if (acceptedApplications >= recruitment.positions) {
-        throw new ApiError(
-            400,
-            "All positions have already been filled"
-        )
-    }
-
-    await Application.findByIdAndUpdate(
-        applicationId,
-        {
-            $set: {
-                status: "ACCEPTED"
-            }
-        },
-        {
-            new: true
+        if (!application) {
+            throw new ApiError(404, "Application not found")
         }
-    )
 
-    if (acceptedApplications + 1 >= recruitment.positions) {
-        recruitment.status = "CLOSED"
-        await recruitment.save()
-    }
+        const recruitment = await Recruitment.findById(
+            application.recruitment
+        ).session(session)
 
-    let team = await Team.findOne({
-        project: recruitment.project
-    })
+        if (!recruitment) {
+            throw new ApiError(
+                404,
+                "Recruitment not found"
+            )
+        }
 
-    if (!team) {
-        team = await Team.create({
-            name: `${recruitment.title} Team`,
-            project: recruitment.project,
-            owner: recruitment.createdBy,
-            members: [
+        if (
+            recruitment.owner.toString() !==
+            req.user._id.toString()
+        ) {
+            throw new ApiError(
+                403,
+                "Forbidden access to handle recruitment"
+            )
+        }
+
+        if (recruitment.status === "CLOSED") {
+            throw new ApiError(
+                400,
+                "Recruitment is closed"
+            )
+        }
+
+        if (application.status === "ACCEPTED") {
+            throw new ApiError(
+                400,
+                "Application already accepted"
+            )
+        }
+
+        if (application.status === "REJECTED") {
+            throw new ApiError(
+                400,
+                "Cannot accept rejected application"
+            )
+        }
+
+        const acceptedApplications =
+            await Application.countDocuments({
+                recruitment: recruitment._id,
+                status: "ACCEPTED"
+            }).session(session)
+
+        if (
+            acceptedApplications >=
+            recruitment.positions
+        ) {
+            throw new ApiError(
+                400,
+                "All positions have already been filled"
+            )
+        }
+
+        application.status = "ACCEPTED"
+        await application.save({ session })
+
+        if (
+            acceptedApplications + 1 >=
+            recruitment.positions
+        ) {
+            recruitment.status = "CLOSED"
+            await recruitment.save({ session })
+        }
+
+        let team = await Team.findOne({
+            project: recruitment.project
+        }).session(session)
+
+        if (!team) {
+            team = await Team.create(
+                [{
+                    name: `${recruitment.title} Team`,
+                    project: recruitment.project,
+                    owner: recruitment.owner,
+                    members: [
+                        {
+                            user: recruitment.owner,
+                            role: "Lead"
+                        }
+                    ]
+                }],
+                { session }
+            )
+
+            team = team[0]
+        }
+
+        const alreadyMember = team.members.some(
+            member =>
+                member.user.toString() ===
+                application.applicant.toString()
+        )
+
+        if (!alreadyMember) {
+            team.members.push({
+                user: application.applicant,
+                role: "Member"
+            })
+
+            await team.save({ session })
+        }
+
+        await session.commitTransaction()
+
+        session.endSession()
+
+        await createNotification({
+            recipient: application.applicant,
+            sender: req.user._id,
+            type: "APPLICATION_ACCEPTED",
+            message:
+                "Your application has been accepted",
+            referenceId: application._id
+        })
+
+        if (!alreadyMember) {
+            await createNotification({
+                recipient: application.applicant,
+                sender: req.user._id,
+                type: "TEAM_JOINED",
+                message: `You have been added to ${team.name}`,
+                referenceId: team._id
+            })
+        }
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
                 {
-                    user: recruitment.createdBy,
-                    role: "Lead"
-                }
-            ]
-        })
+                    status: "ACCEPTED"
+                },
+                "Application accepted successfully"
+            )
+        )
+
+    } catch (error) {
+
+        await session.abortTransaction()
+        session.endSession()
+
+        throw error
     }
-
-    const alreadyMember = team.members.some(
-        member =>
-            member.user.toString() ===
-            application.applicant.toString()
-    )
-
-    if (!alreadyMember) {
-        team.members.push({
-            user: application.applicant,
-            role: "Member"
-        })
-    }
-
-    await team.save()
-
-    return res.status(200).json(new ApiResponse(200,
-        {
-            status: "ACCEPTED",
-        },
-        "Application accepted successfully")
-    )
-
 })
 
 const rejectApplication = asyncHandler(async (req, res) => {
@@ -739,6 +833,14 @@ const rejectApplication = asyncHandler(async (req, res) => {
     application.status = "REJECTED";
 
     await application.save();
+
+    await createNotification({
+        recipient: application.applicant,
+        sender: req.user._id,
+        type: "APPLICATION_REJECTED",
+        message: "Your application has been rejected",
+        referenceId: application._id
+    })
 
     return res.status(200).json(
         new ApiResponse(
