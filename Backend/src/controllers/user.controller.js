@@ -99,16 +99,11 @@ const loginUser = asyncHandler(async (req, res) => {
             "Username/email and password are required"
         )
     }
-
-    if(username){
-        username=username.toLowerCase()
-    }
-    if(email){
-        email=email.toLowerCase()
-    }
+    const normalizedUsername = username?.toLowerCase();
+    const normalizedEmail = email?.toLowerCase();
 
     const user = await User.findOne({
-        $or: [{ email }, { username }]
+        $or: [{ email: normalizedEmail }, { username: normalizedUsername }]
     })
 
 
@@ -222,12 +217,12 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body
 
     const user = await User.findById(req.user?._id)
-    
-    if(!oldPassword?.trim()){
+
+    if (!oldPassword?.trim()) {
         throw new ApiError(400, "Old password is required")
     }
-    if(oldPassword===newPassword){
-        throw new ApiError(400,"Old and new passwords are same")
+    if (oldPassword === newPassword) {
+        throw new ApiError(400, "Old and new passwords are same")
     }
 
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
@@ -269,7 +264,9 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
             .filter(Boolean);
     }
 
-    if (fullName !== undefined && !fullName.trim()) updateFields.fullName = fullName;
+    if (fullName !== undefined && fullName.trim()) {
+        updateFields.fullName = fullName;
+    }
     if (bio !== undefined) updateFields.bio = bio;
     if (education !== undefined) updateFields.education = education;
     if (github !== undefined) updateFields.github = github;

@@ -191,6 +191,12 @@ const getAllProjects = asyncHandler(async (req, res) => {
                 },
                 isBookmarked: {
                     $in: [req.user._id, "$bookmarks"]
+                },
+                commentsCount: {
+                    $size: "$comments"
+                },
+                bookmarksCount: {
+                    $size: "$bookmarks"
                 }
             }
         },
@@ -215,7 +221,10 @@ const getAllProjects = asyncHandler(async (req, res) => {
                 likesCount: 1,
                 isLiked: 1,
 
+                commentsCount: 1,
+
                 isBookmarked: 1,
+                bookmarksCount: 1,
 
                 createdAt: 1,
                 updatedAt: 1
@@ -240,6 +249,111 @@ const getAllProjects = asyncHandler(async (req, res) => {
         )
     )
 })
+const getMyProjects = asyncHandler(async (req, res) => {
+
+    const userId = req.user._id;
+
+    const projects = await Project.aggregate([
+
+        {
+            $match: {
+                owner: userId
+            }
+        },
+
+        {
+            $sort: {
+                createdAt: -1
+            }
+        },
+
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+
+        {
+            $addFields: {
+                owner: {
+                    $first: "$owner"
+                },
+
+                likesCount: {
+                    $size: "$likes"
+                },
+
+                commentsCount: {
+                    $size: "$comments"
+                },
+
+                bookmarksCount: {
+                    $size: "$bookmarks"
+                },
+
+                isLiked: {
+                    $in: [userId, "$likes"]
+                },
+
+                isBookmarked: {
+                    $in: [userId, "$bookmarks"]
+                }
+            }
+        },
+
+        {
+            $project: {
+                _id: 1,
+
+                title: 1,
+                description: 1,
+
+                category: 1,
+
+                techStack: 1,
+
+                githubLink: 1,
+                liveDemoLink: 1,
+
+                images: 1,
+
+                owner: 1,
+
+                likesCount: 1,
+                commentsCount: 1,
+                bookmarksCount: 1,
+
+                isLiked: 1,
+                isBookmarked: 1,
+
+                createdAt: 1,
+                updatedAt: 1
+            }
+        }
+
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            projects,
+            "My projects fetched successfully"
+        )
+    );
+});
 
 const getProjectById = asyncHandler(async (req, res) => {
     const { projectId } = req.params
@@ -470,7 +584,7 @@ const deleteProject = asyncHandler(async (req, res) => {
     if (team) {
         for (const member of team.members) {
 
-            if (member.user.toString() ===req.user._id.toString()) {
+            if (member.user.toString() === req.user._id.toString()) {
                 continue
             }
 
@@ -631,7 +745,16 @@ const addComment = asyncHandler(async (req, res) => {
         message: `${req.user.fullName} commented on your project`,
         referenceId: project._id
     })
-    return res.status(201).json(new ApiResponse(201, comment, "Comment created successfully"))
+    const populatedComment = await Comments.findById(comment._id)
+        .populate("owner", "username avatar");
+
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            populatedComment,
+            "Comment created successfully"
+        )
+    );
 })
 
 const allComments = asyncHandler(async (req, res) => {
@@ -884,6 +1007,12 @@ const getTrendingProjects = asyncHandler(async (req, res) => {
                 bookmarksCount: 1,
                 commentsCount: 1,
                 trendingScore: 1,
+                description: 1,
+                images: 1,
+                techStack: 1,
+                category: 1,
+                isLiked: 1,
+                isBookmarked: 1
             }
         }
     ])
@@ -895,6 +1024,6 @@ const getTrendingProjects = asyncHandler(async (req, res) => {
 
 
 export {
-    createProject, getAllProjects, getProjectById, updateProject,
+    createProject, getAllProjects,getMyProjects, getProjectById, updateProject,
     deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment, deleteComment, addBookmark, removeBookmark, getTrendingProjects
 }

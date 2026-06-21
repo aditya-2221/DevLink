@@ -2,16 +2,9 @@ import { Router } from "express";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
-    createProject,
-    getAllProjects,
-    getProjectById,
-    updateProject,
-    deleteProject,
-    likeProject,
-    unlikeProject,
-    addBookmark,
-    removeBookmark,
-    getTrendingProjects
+    createProject, getAllProjects, getProjectById, updateProject,
+    deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment,
+    deleteComment, addBookmark, removeBookmark, getTrendingProjects,getMyProjects
 } from "../controllers/project.controller.js";
 
 const router = Router();
@@ -22,12 +15,17 @@ router.route("/")
         upload.array("images", 5),
         createProject
     )
-    .get(verifyJWT,getAllProjects);
+    .get(verifyJWT, getAllProjects);
 
 router.route("/trending").get(getTrendingProjects)
+router.get(
+    "/my-projects",
+    verifyJWT,
+    getMyProjects
+);
 
 router.route("/:projectId")
-    .get(verifyJWT,getProjectById)
+    .get(verifyJWT, getProjectById)
     .patch(
         verifyJWT,
         upload.array("images", 5),
@@ -45,5 +43,13 @@ router.route("/:projectId/like")
 router.route("/:projectId/bookmark")
     .post(verifyJWT, addBookmark)
     .delete(verifyJWT, removeBookmark);
+
+router.route("/:projectId/comments")
+    .post(verifyJWT, addComment)
+    .get(verifyJWT, allComments);
+
+router.route("/comments/:commentId")
+    .patch(verifyJWT, updateComment)
+    .delete(verifyJWT, deleteComment);
 
 export default router;
