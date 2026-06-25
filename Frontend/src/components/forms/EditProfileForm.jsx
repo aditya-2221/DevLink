@@ -13,7 +13,17 @@ function EditProfileForm({
             bio:
                 user?.bio || "",
             education:
-                user?.education || "",
+                user?.education?.length
+                    ? user.education
+                    : [
+                        {
+                            institution: "",
+                            degree: "",
+                            fieldOfStudy: "",
+                            startYear: "",
+                            endYear: "",
+                        },
+                    ],
             location:
                 user?.location || "",
             skills:
@@ -27,6 +37,58 @@ function EditProfileForm({
             ...formData,
             [e.target.name]:
                 e.target.value,
+        });
+
+    };
+    const handleEducationChange = (
+        index,
+        field,
+        value
+    ) => {
+
+        const updated =
+            [...formData.education];
+
+        updated[index][field] =
+            value;
+
+        setFormData({
+            ...formData,
+            education: updated,
+        });
+
+    };
+
+    const addEducation = () => {
+
+        setFormData({
+            ...formData,
+            education: [
+                ...formData.education,
+                {
+                    institution: "",
+                    degree: "",
+                    fieldOfStudy: "",
+                    startYear: "",
+                    endYear: "",
+                },
+            ],
+        });
+
+    };
+
+    const removeEducation = (
+        index
+    ) => {
+
+        const updated =
+            formData.education.filter(
+                (_, i) => i !== index
+            );
+
+        setFormData({
+            ...formData,
+            education: updated,
         });
 
     };
@@ -77,6 +139,8 @@ function EditProfileForm({
             <textarea
                 rows={4}
                 name="bio"
+                maxLength={150}
+
                 value={
                     formData.bio
                 }
@@ -86,14 +150,19 @@ function EditProfileForm({
                 placeholder="Bio"
                 className="
                 w-full
+                
                 p-3
                 rounded-xl
                 bg-slate-900
                 border
                 border-slate-700
                 text-white
+                
                 "
             />
+            <p className="text-xs text-slate-500 mt-1">
+                {formData.bio.length}/150 characters
+            </p>
 
             <input
                 name="location"
@@ -115,25 +184,219 @@ function EditProfileForm({
                 "
             />
 
-            <input
-                name="education"
-                value={
-                    formData.education
-                }
-                onChange={
-                    handleChange
-                }
-                placeholder="Education"
+            <div
                 className="
-                w-full
-                p-3
-                rounded-xl
-                bg-slate-900
-                border
-                border-slate-700
-                text-white
-                "
-            />
+    bg-slate-900/40
+    border
+    border-slate-800
+    rounded-2xl
+    p-4
+    "
+            >
+
+                <div
+                    className="
+        flex
+        justify-between
+        items-center
+        mb-4
+        "
+                >
+
+                    <h3
+                        className="
+            text-white
+            font-semibold
+            "
+                    >
+                        Education
+                    </h3>
+
+                    <button
+                        type="button"
+                        onClick={addEducation}
+                        className="
+            px-3
+            py-1
+            rounded-lg
+            bg-blue-600
+            text-white
+            text-sm
+            "
+                    >
+                        + Add
+                    </button>
+
+                </div>
+
+                <div className="space-y-6">
+
+                    {formData.education.map(
+                        (edu, index) => (
+
+                            <div
+                                key={index}
+                                className="
+                    border
+                    border-slate-800
+                    rounded-xl
+                    p-4
+                    space-y-3
+                    "
+                            >
+
+                                <input
+                                    value={
+                                        edu.institution
+                                    }
+                                    onChange={(e) =>
+                                        handleEducationChange(
+                                            index,
+                                            "institution",
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Institution"
+                                    className="
+                        w-full
+                        p-3
+                        rounded-xl
+                        bg-slate-900
+                        border
+                        border-slate-700
+                        text-white
+                        "
+                                />
+
+                                <input
+                                    value={
+                                        edu.degree
+                                    }
+                                    onChange={(e) =>
+                                        handleEducationChange(
+                                            index,
+                                            "degree",
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Degree"
+                                    className="
+                        w-full
+                        p-3
+                        rounded-xl
+                        bg-slate-900
+                        border
+                        border-slate-700
+                        text-white
+                        "
+                                />
+
+                                <input
+                                    value={
+                                        edu.fieldOfStudy
+                                    }
+                                    onChange={(e) =>
+                                        handleEducationChange(
+                                            index,
+                                            "fieldOfStudy",
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Field Of Study"
+                                    className="
+                        w-full
+                        p-3
+                        rounded-xl
+                        bg-slate-900
+                        border
+                        border-slate-700
+                        text-white
+                        "
+                                />
+
+                                <div
+                                    className="
+                        grid
+                        grid-cols-2
+                        gap-3
+                        "
+                                >
+
+                                    <input
+                                        type="number"
+                                        value={
+                                            edu.startYear
+                                        }
+                                        onChange={(e) =>
+                                            handleEducationChange(
+                                                index,
+                                                "startYear",
+                                                e.target.value
+                                            )
+                                        }
+                                        placeholder="Start Year"
+                                        className="
+                            p-3
+                            rounded-xl
+                            bg-slate-900
+                            border
+                            border-slate-700
+                            text-white
+                            "
+                                    />
+
+                                    <input
+                                        type="number"
+                                        value={
+                                            edu.endYear
+                                        }
+                                        onChange={(e) =>
+                                            handleEducationChange(
+                                                index,
+                                                "endYear",
+                                                e.target.value
+                                            )
+                                        }
+                                        placeholder="End Year"
+                                        className="
+                            p-3
+                            rounded-xl
+                            bg-slate-900
+                            border
+                            border-slate-700
+                            text-white
+                            "
+                                    />
+
+                                </div>
+
+                                {formData.education
+                                    .length > 1 && (
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                removeEducation(
+                                                    index
+                                                )
+                                            }
+                                            className="
+                            text-red-400
+                            text-sm
+                            "
+                                        >
+                                            Remove Education
+                                        </button>
+
+                                    )}
+
+                            </div>
+                        )
+                    )}
+
+                </div>
+
+            </div>
 
             <input
                 name="skills"

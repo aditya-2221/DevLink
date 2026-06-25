@@ -1,10 +1,8 @@
 import { useSelector } from "react-redux";
 
-function SkillsCard() {
+function SkillsCard({user}) {
 
-  const { user } = useSelector(
-    state => state.auth
-  );
+  
 
   return (
     <div

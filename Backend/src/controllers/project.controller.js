@@ -442,6 +442,139 @@ const getProjectById = asyncHandler(async (req, res) => {
 
 })
 
+const getProjectsByUsername = asyncHandler(
+    async (req, res) => {
+
+        const { username } = req.params;
+
+        if (!username?.trim()) {
+            throw new ApiError(
+                400,
+                "Username is required"
+            );
+        }
+
+        const user = await User.findOne({
+            username:username.trim().toLowerCase()
+        });
+
+        if (!user) {
+            throw new ApiError(
+                404,
+                "User not found"
+            );
+        }
+
+        const projects =
+            await Project.aggregate([
+
+                {
+                    $match: {
+                        owner: user._id
+                    }
+                },
+
+                {
+                    $sort: {
+                        createdAt: -1
+                    }
+                },
+
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "owner",
+                        foreignField: "_id",
+                        as: "owner",
+                        pipeline: [
+                            {
+                                $project: {
+                                    _id: 1,
+                                    username: 1,
+                                    fullName: 1,
+                                    avatar: 1
+                                }
+                            }
+                        ]
+                    }
+                },
+
+                {
+                    $addFields: {
+
+                        owner: {
+                            $first: "$owner"
+                        },
+
+                        likesCount: {
+                            $size: "$likes"
+                        },
+
+                        commentsCount: {
+                            $size: "$comments"
+                        },
+
+                        bookmarksCount: {
+                            $size: "$bookmarks"
+                        },
+
+                        isLiked: {
+                            $in: [
+                                req.user?._id,
+                                "$likes"
+                            ]
+                        },
+
+                        isBookmarked: {
+                            $in: [
+                                req.user?._id,
+                                "$bookmarks"
+                            ]
+                        }
+
+                    }
+                },
+
+                {
+                    $project: {
+
+                        title: 1,
+                        description: 1,
+
+                        category: 1,
+
+                        techStack: 1,
+
+                        githubLink: 1,
+                        liveDemoLink: 1,
+
+                        images: 1,
+
+                        owner: 1,
+
+                        likesCount: 1,
+                        commentsCount: 1,
+                        bookmarksCount: 1,
+
+                        isLiked: 1,
+                        isBookmarked: 1,
+
+                        createdAt: 1
+                    }
+                }
+
+            ]);
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                projects,
+                "Projects fetched successfully"
+            )
+        );
+    }
+);
+
 const updateProject = asyncHandler(async (req, res) => {
     const { projectId } = req.params
     const user = req.user
@@ -1024,6 +1157,6 @@ const getTrendingProjects = asyncHandler(async (req, res) => {
 
 
 export {
-    createProject, getAllProjects,getMyProjects, getProjectById, updateProject,
+    createProject, getAllProjects,getMyProjects, getProjectById,getProjectsByUsername ,updateProject,
     deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment, deleteComment, addBookmark, removeBookmark, getTrendingProjects
 }

@@ -4,6 +4,9 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import ApiResponse from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import jwt from "jsonwebtoken"
+import { Project } from "../models/project.model.js";
+
+
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -19,7 +22,27 @@ const generateAccessAndRefreshToken = async (userId) => {
         throw new ApiError(500, "Something went wrong while generating access and refresh token")
     }
 }
+const getProfileCompletion = (
+    user
+) => {
 
+    let completed = 0;
+    const total = 9;
+
+    if (user.avatar) completed++;
+    if (user.coverImage) completed++;
+    if (user.bio) completed++;
+    if (user.location) completed++;
+    if (user.github) completed++;
+    if (user.linkedin) completed++;
+    if (user.portfolio) completed++;
+    if (user.skills?.length > 0) completed++;
+    if (user.education?.length > 0) completed++;
+
+    return Math.round(
+        (completed / total) * 100
+    );
+};
 
 const registerUser = asyncHandler(async (req, res) => {
     // get user details from frontend
@@ -168,7 +191,92 @@ const logoutUser = asyncHandler(async (req, res) => {
 })
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-    return res.status(200).json(new ApiResponse(200, req.user, "User fetched successfully"))
+
+    const profileCompletion = getProfileCompletion(req.user)
+    const projectStats = await Project.aggregate([
+        {
+            $match: {
+                owner: req.user._id
+            }
+        },
+        {
+            $group: {
+                _id: null,
+
+                projectsCount: {
+                    $sum: 1
+                },
+
+                totalLikes: {
+                    $sum: {
+                        $size: "$likes"
+                    }
+                },
+
+                totalBookmarks: {
+                    $sum: {
+                        $size: "$bookmarks"
+                    }
+                }
+            }
+        }
+    ]);
+
+    const stats = projectStats[0] || {
+        projectsCount: 0,
+        totalLikes: 0,
+        totalBookmarks: 0
+    };
+
+    const badges = [];
+
+
+    if (
+        stats.projectsCount >= 3 &&
+        stats.totalLikes >= 10
+    ) {
+        badges.push(
+            "devlink-developer"
+        );
+    }
+
+
+    if (
+        stats.projectsCount >= 15 &&
+        stats.totalLikes >= 100 &&
+        stats.totalBookmarks >= 50
+    ) {
+        badges.push(
+            "top-contributor"
+        );
+    }
+
+    if (
+        stats.projectsCount >= 30 &&
+        stats.totalLikes >= 300 &&
+        stats.totalBookmarks >= 150
+    ) {
+        badges.push(
+            "elite-developer"
+        );
+    }
+
+    return res.status(200).json(new ApiResponse(200, {
+        ...req.user.toObject(),
+
+        profileCompletion,
+
+        badges,
+
+        stats: {
+            projects:
+                stats.projectsCount,
+            likes:
+                stats.totalLikes,
+            bookmarks:
+                stats.totalBookmarks
+        }
+    }, "User fetched successfully"))
 })
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
@@ -264,8 +372,21 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
             .filter(Boolean);
     }
 
+    if (education && !Array.isArray(education)) {
+        throw new ApiError(
+            400,
+            "Education must be an array"
+        );
+    }
+
     if (fullName !== undefined && fullName.trim()) {
         updateFields.fullName = fullName;
+    }
+    if (bio && bio.length > 150) {
+        throw new ApiError(
+            400,
+            "Bio cannot exceed 150 characters"
+        );
     }
     if (bio !== undefined) updateFields.bio = bio;
     if (education !== undefined) updateFields.education = education;
@@ -285,10 +406,19 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
             runValidators: true
         }
     ).select("-password -refreshToken");
+    const profileCompletion = getProfileCompletion(updatedUser)
+    if (profileCompletion === 100) {
+
+    }
+    updatedUser.isVerified = profileCompletion === 100;
+
+    await updatedUser.save({
+        validateBeforeSave: false
+    });
 
     return res
         .status(200)
-        .json(new ApiResponse(200, updatedUser, "Account details updated successfully"))
+        .json(new ApiResponse(200, { ...updatedUser.toObject(), profileCompletion }, "Account details updated successfully"))
 })
 
 
@@ -435,7 +565,8 @@ const userProfile = asyncHandler(async (req, res) => {
                 linkedin: 1,
                 portfolio: 1,
                 location: 1,
-                createdAt: 1
+                createdAt: 1,
+                isVerified: 1
             }
         }
     ]);
@@ -443,10 +574,16 @@ const userProfile = asyncHandler(async (req, res) => {
     if (!profile?.length) {
         throw new ApiError(404, "Profile does not exist")
     }
-
+    const user = profile[0];
     return res
         .status(200)
-        .json(new ApiResponse(200, profile[0], "Profile fetched successfully"))
+        .json(
+            new ApiResponse(
+                200,
+                user,
+                "Profile fetched successfully"
+            )
+        )
 
 
 })

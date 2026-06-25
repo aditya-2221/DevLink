@@ -16,6 +16,10 @@ function Projects() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState("feed");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [sort, setSort] = useState("latest");
   const fetchProjects = async () => {
 
     try {
@@ -68,7 +72,13 @@ function Projects() {
           break;
 
         default:
-          response = await getProjects();
+          response = await getProjects({
+            search,
+            category,
+            sort,
+            page: currentPage,
+            limit: 10
+          });
 
           dispatch(
             setProjects(
@@ -79,10 +89,8 @@ function Projects() {
           dispatch(
             setPagination({
               page: response.data.data.page,
-              totalPages:
-                response.data.data.totalPages,
-              totalProjects:
-                response.data.data.totalProjects
+              totalPages: response.data.data.totalPages,
+              totalProjects: response.data.data.totalProjects
             })
           );
       }
@@ -105,8 +113,13 @@ function Projects() {
 
   useEffect(() => {
     fetchProjects();
-  }, [activeTab]);
-
+  }, [
+    activeTab,
+    currentPage,
+    search,
+    category,
+    sort
+  ]);
 
   const tabs = [
     "feed",
@@ -114,11 +127,21 @@ function Projects() {
     "newest",
     "my-projects"
   ];
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    activeTab,
+    search,
+    category,
+    sort
+  ]);
 
   const {
     projects,
     loading,
     error,
+    totalPages,
+    totalProjects
   } = useSelector(
     (state) => state.projects
   );
@@ -149,6 +172,8 @@ function Projects() {
 
           <p className="text-slate-400 mt-2">
             Discover and showcase amazing projects
+            {activeTab === "feed" &&
+              ` • ${totalProjects || 0} Projects`}
           </p>
         </div>
 
@@ -252,6 +277,77 @@ function Projects() {
           ))}
         </div>
       )}
+      {
+        (activeTab === "feed" ||
+          activeTab === "newest") && (
+
+          <div
+            className="
+            flex
+            justify-center
+            items-center
+            gap-4
+            mt-10
+        "
+          >
+
+            <button
+              disabled={
+                currentPage === 1
+              }
+              onClick={() =>
+                setCurrentPage(
+                  prev => prev - 1
+                )
+              }
+              className="
+                px-4
+                py-2
+                rounded-lg
+                bg-slate-800
+                text-white
+                disabled:opacity-50
+            "
+            >
+              Previous
+            </button>
+
+            <span
+              className="
+                text-white
+                font-medium
+            "
+            >
+              Page {currentPage}
+              {" / "}
+              {totalPages || 1}
+            </span>
+
+            <button
+              disabled={
+                currentPage >= totalPages
+              }
+              onClick={() =>
+                setCurrentPage(
+                  prev => prev + 1
+                )
+              }
+              className="
+                px-4
+                py-2
+                rounded-lg
+                bg-slate-800
+                text-white
+                disabled:opacity-50
+            "
+            >
+              Next
+            </button>
+
+          </div>
+
+        )
+      }
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
     createProject, getAllProjects, getProjectById, updateProject,
     deleteProject, likeProject, unlikeProject, addComment, allComments, updateComment,
-    deleteComment, addBookmark, removeBookmark, getTrendingProjects,getMyProjects
+    deleteComment, addBookmark, removeBookmark, getTrendingProjects,getMyProjects,getProjectsByUsername
 } from "../controllers/project.controller.js";
 
 const router = Router();
@@ -23,6 +23,12 @@ router.get(
     verifyJWT,
     getMyProjects
 );
+
+router.get(
+    "/user/:username",
+    verifyJWT,
+    getProjectsByUsername
+)
 
 router.route("/:projectId")
     .get(verifyJWT, getProjectById)

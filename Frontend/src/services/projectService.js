@@ -64,3 +64,9 @@ export const deleteComment = (commentId) =>
         `/projects/comments/${commentId}`
     );
 
+export const getProjectsByUsername = (
+    username
+) =>
+    api.get(
+        `/projects/user/${username}`
+    );

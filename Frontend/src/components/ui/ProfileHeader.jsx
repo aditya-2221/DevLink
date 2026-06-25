@@ -3,20 +3,37 @@ import {
     FaGithub,
     FaLinkedin,
     FaGlobe,
+    FaCode,
     FaMapMarkerAlt,
+    FaCheckCircle, FaFolder,
+    FaHeart,
+    FaBookmark
 } from "react-icons/fa";
+
+import { BADGES } from "../../constants/badges"
 
 function ProfileHeader({
     onEdit,
     onLinkProfiles,
-    stats
+    stats,
+    user,
+    isOwner = false
 }) {
-    const { user } = useSelector(
-        (state) => state.auth
-    );
+
+
 
     const hasSocials = user?.github || user?.linkedin || user?.portfolio;
 
+
+    const memberSince = user?.createdAt
+        ? new Date(user.createdAt).toLocaleDateString(
+            "en-US",
+            {
+                month: "long",
+                year: "numeric",
+            }
+        )
+        : "Recently";
     return (
         <div
             className="
@@ -29,7 +46,7 @@ function ProfileHeader({
         >
             {/* Cover */}
 
-            <div className="relative h-32">
+            <div className="relative h-42">
 
                 <img
                     src={user?.coverImage}
@@ -43,14 +60,16 @@ function ProfileHeader({
 
                 <div
                     className="
-          absolute
-          inset-0
-          bg-gradient-to-t
-          from-slate-950
-          via-slate-950/40
-          to-transparent
-          "
+  absolute
+  inset-0
+  bg-gradient-to-r
+  from-slate-950
+  via-slate-950/50
+  to-transparent
+  "
                 />
+
+
             </div>
 
             {/* Content */}
@@ -62,59 +81,227 @@ function ProfileHeader({
                         src={user?.avatar}
                         alt={user?.fullName}
                         className="
-    w-32
-    h-32
-    rounded-full
-    border-4
-    border-slate-950
-    object-cover
-    absolute
-    left-8
-    -top-20
-    z-10
-    "
+w-36
+h-36
+rounded-full
+border-4
+border-slate-950
+ring-4
+ring-blue-500/50
+shadow-[0_0_40px_rgba(59,130,246,0.35)]
+object-cover
+absolute
+left-8
+-top-20
+z-10
+"
                     />
 
 
                     <div className="pt-20">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3">
 
-                        <h1
-                            className="
-                text-2xl
-                font-bold
-                text-white
+                                <h1
+                                    className="
+        text-3xl
+        font-bold
+        text-white
+        "
+                                >
+                                    {user?.fullName}
+                                </h1>
+
+                                {user?.isVerified && (
+                                    <FaCheckCircle
+                                        title="Verified Profile"
+                                        className="
+    text-sky-400
+    text-lg
+    shrink-0
+    drop-shadow-[0_0_10px_rgba(56,189,248,0.8)]
+    "
+                                    />
+                                )}
+                            </div>
+
+                        </div>
+
+                        <div className="flex items-center gap-3 mt-1">
+
+                            <p className="text-slate-400">
+                                @{user?.username}
+                            </p>
+
+                            {user?.badges?.length > 0 && (
+
+                                <div
+                                    className="
+        flex
+        flex-wrap
+        gap-2
+        mt-3
+        "
+                                >
+
+                                    {user?.badges?.map((badge) => (
+
+                                        <div
+                                            key={badge}
+                                            className="
+        relative
+        group
+        "
+                                        >
+
+                                            <span
+                                                className={`
+            px-3
+            py-1
+            rounded-full
+            bg-slate-900/60
+            border
+            border-blue-500/20
+            text-xs
+            font-medium
+            cursor-help
+            transition-all
+            duration-200
+            hover:scale-105
+            ${BADGES[badge]?.color}
+            `}
+                                            >
+
+                                                {BADGES[badge]?.icon}
+                                                {" "}
+                                                {BADGES[badge]?.label}
+
+                                            </span>
+
+                                            <div
+                                                className="
+            absolute
+            left-1/2
+            -translate-x-1/2
+            top-full
+            mt-3
+
+            w-64
+
+            bg-slate-950
+            border
+            border-slate-700
+
+            rounded-xl
+            p-3
+
+            text-xs
+            text-slate-300
+
+            opacity-0
+            invisible
+
+            group-hover:opacity-100
+            group-hover:visible
+
+            transition-all
+            duration-200
+
+            z-50
+            "
+                                            >
+
+                                                <div
+                                                    className="
+                absolute
+                -top-1
+                left-1/2
+                -translate-x-1/2
+                w-2
+                h-2
+                bg-slate-950
+                border-l
+                border-t
+                border-slate-700
+                rotate-45
                 "
+                                                />
+
+                                                <p className="font-medium text-white mb-1">
+                                                    {BADGES[badge]?.label}
+                                                </p>
+
+                                                <p>
+                                                    {BADGES[badge]?.description}
+                                                </p>
+
+                                            </div>
+
+                                        </div>
+
+                                    ))}
+
+                                </div>
+
+                            )}
+
+                        </div>
+
+                        <p
+                            className="
+  text-slate-300
+  mt-4
+  max-w-[650px]
+  break-words
+  line-clamp-3
+  "
                         >
-                            {user?.fullName}
-                        </h1>
-
-                        <p className="text-slate-400 mt-1">
-                            @{user?.username}
-                        </p>
-
-                        <p className="text-slate-300 mt-4">
                             {user?.bio || "No bio added yet."}
                         </p>
-                        <div className="flex gap-2 mt-3">
+                        <div
+                            className="
+  flex
+  flex-wrap
+  gap-2
+  mt-4
+  "
+                        >
 
-                            {!user?.github && (
-                                <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
-                                    GitHub Not Connected
-                                </span>
-                            )}
+                            {
+                                isOwner && (
 
-                            {!user?.linkedin && (
-                                <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
-                                    LinkedIn Not Connected
-                                </span>
-                            )}
+                                    <div
+                                        className="
+            flex
+            flex-wrap
+            gap-2
+            mt-4
+           
+            "
+                                    >
 
-                            {!user?.portfolio && (
-                                <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
-                                    Portfolio Not Connected
-                                </span>
-                            )}
+                                        {!user?.github && (
+                                            <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
+                                                ⚠ GitHub Missing
+                                            </span>
+                                        )}
 
+                                        {!user?.linkedin && (
+                                            <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
+                                                ⚠ LinkedIn Missing
+                                            </span>
+                                        )}
+
+                                        {!user?.portfolio && (
+                                            <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
+                                                ⚠ Portfolio Missing
+                                            </span>
+                                        )}
+
+                                    </div>
+
+                                )
+                            }
                         </div>
 
                         <div
@@ -170,66 +357,143 @@ function ProfileHeader({
                             )}
                         </div>
 
-                        <div className="flex gap-6 mt-6">
+
+                        <div
+                            className="
+  grid
+  grid-cols-3
+  gap-4
+  mt-6
+  max-w-xl
+  "
+                        >
+
 
                             <div
                                 className="
-  bg-slate-900/60
+  bg-slate-900/80
   border
   border-blue-500/10
   rounded-2xl
-  px-5
-  py-4
-  min-w-[120px]
+  p-5
+  hover:-translate-y-1
+  hover:border-blue-500/40
+  transition-all
+  duration-300
   "
                             >
-                                <h3 className="text-2xl font-bold text-white">
-                                    {stats.projects}
-                                </h3>
 
-                                <p className="text-slate-400 text-sm">
-                                    Projects
-                                </p>
+                                <div className="flex items-center gap-4">
+
+                                    <div
+                                        className="
+            w-12
+            h-12
+            rounded-full
+            bg-blue-500/15
+            flex
+            items-center
+            justify-center
+            "
+                                    >
+                                        <FaFolder className="text-blue-400 text-lg" />
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-4xl font-bold text-white">
+                                            {stats.projects}
+                                        </h3>
+
+                                        <p className="text-slate-400 text-sm">
+                                            Projects
+                                        </p>
+                                    </div>
+
+                                </div>
                             </div>
 
                             <div
                                 className="
-  bg-slate-900/60
+  bg-slate-900/80
   border
   border-blue-500/10
   rounded-2xl
-  px-5
-  py-4
-  min-w-[120px]
+  p-5
+  hover:-translate-y-1
+  hover:border-pink-500/40
+  transition-all
+  duration-300
   "
                             >
-                                <h3 className="text-2xl font-bold text-white">
-                                    {stats.likes}
-                                </h3>
+                                <div className="flex items-center gap-4">
 
-                                <p className="text-slate-400 text-sm">
-                                    Likes
-                                </p>
+                                    <div
+                                        className="
+            w-12
+            h-12
+            rounded-full
+            bg-pink-500/15
+            flex
+            items-center
+            justify-center
+            "
+                                    >
+                                        <FaHeart className="text-pink-400 text-lg" />
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-4xl font-bold text-white">
+                                            {stats.likes}
+                                        </h3>
+
+                                        <p className="text-slate-400 text-sm">
+                                            Likes
+                                        </p>
+                                    </div>
+
+                                </div>
                             </div>
 
                             <div
                                 className="
-  bg-slate-900/60
+  bg-slate-900/80
   border
   border-blue-500/10
   rounded-2xl
-  px-5
-  py-4
-  min-w-[120px]
+  p-5
+  hover:-translate-y-1
+  hover:border-green-500/40
+  transition-all
+  duration-300
   "
                             >
-                                <h3 className="text-2xl font-bold text-white">
-                                    {stats.bookmarks}
-                                </h3>
+                                <div className="flex items-center gap-4">
 
-                                <p className="text-slate-400 text-sm">
-                                    Bookmarks
-                                </p>
+                                    <div
+                                        className="
+            w-12
+            h-12
+            rounded-full
+            bg-green-500/15
+            flex
+            items-center
+            justify-center
+            "
+                                    >
+                                        <FaBookmark className="text-green-400 text-lg" />
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-4xl font-bold text-white">
+                                            {stats.bookmarks}
+                                        </h3>
+
+                                        <p className="text-slate-400 text-sm">
+                                            Bookmarks
+                                        </p>
+                                    </div>
+
+                                </div>
                             </div>
 
                         </div>
@@ -237,41 +501,224 @@ function ProfileHeader({
                     </div>
 
                 </div>
-                <div className="flex gap-3 mt-6">
 
-                    <button
-                        onClick={onLinkProfiles}
-                        className="
-    px-5
-    py-2.5
-    rounded-xl
-    bg-blue-600
-    hover:bg-blue-500
-    text-white
-    transition
-    "
-                    >
-                        {hasSocials
-                            ? "Manage Links"
-                            : "Link Profiles"}
-                    </button>
 
-                    <button
-                        onClick={onEdit}
+                <div className="flex flex-col items-end gap-5 mt-6">
+
+                    {/* Buttons Row */}
+                    <div className="flex gap-6">
+
+                        {
+                            isOwner && (
+
+                                <div className="flex gap-6">
+
+                                    <button
+                                        onClick={onLinkProfiles}
+                                        className="
+                px-5
+                py-2.5
+                rounded-xl
+                bg-blue-600
+                hover:bg-blue-500
+                text-white
+                transition
+                "
+                                    >
+                                        {hasSocials
+                                            ? "Manage Links"
+                                            : "Link Profiles"}
+                                    </button>
+
+                                    <button
+                                        onClick={onEdit}
+                                        className="
+                px-5
+                py-2.5
+                rounded-xl
+                bg-slate-900/70
+                hover:bg-slate-800
+                border
+                border-blue-500/20
+                text-white
+                transition
+                "
+                                    >
+                                        Edit Profile
+                                    </button>
+
+                                </div>
+
+                            )
+                        }
+
+                    </div>
+
+                    {/* Skills Card */}
+                    {user?.skills?.length > 0 && (
+                        <div
+                            className="
+            w-[300px]
+            bg-slate-900/50
+            border
+            border-blue-500/10
+            rounded-2xl
+            p-4
+            mt-4
+            "
+                        >
+                            <h3
+                                className="
+                text-white
+                font-semibold
+                mb-3
+                "
+                            >
+                                Top Skills
+                            </h3>
+
+                            <div className="flex flex-wrap gap-3">
+
+                                {user.skills
+                                    .slice(0, 3)
+                                    .map((skill) => (
+                                        <span
+                                            key={skill}
+                                            className="
+                            px-3
+                            py-1
+                            rounded-full
+                            bg-blue-500/10
+                            text-blue-400
+                            border
+                            border-blue-500/20
+                            text-sm
+                            hover:bg-blue-500/20
+                            transition
+                            "
+                                        >
+                                            {skill}
+                                        </span>
+                                    ))}
+
+                            </div>
+
+                        </div>
+                    )}
+                    <div
                         className="
-    px-5
-    py-2.5
-    rounded-xl
-    bg-slate-900/70
-    hover:bg-slate-800
+    w-[300px]
+    bg-slate-900/50
     border
-    border-blue-500/20
-    text-white
-    transition
+    border-blue-500/10
+    rounded-2xl
+    p-4
     "
                     >
-                        Edit Profile
-                    </button>
+                        {
+                            isOwner && (
+                                <>
+                                    <div className="flex justify-between items-center mb-3">
+
+                                        <h3
+                                            className="
+                    text-white
+                    font-semibold
+                    "
+                                        >
+                                            Profile Completion
+                                        </h3>
+
+                                        <span
+                                            className="
+                    text-blue-400
+                    font-bold
+                    "
+                                        >
+                                            {user.profileCompletion}%
+                                        </span>
+
+                                    </div>
+
+                                    <div
+                                        className="
+                h-2
+                bg-slate-800
+                rounded-full
+                overflow-hidden
+                mb-4
+                "
+                                    >
+                                        <div
+                                            className="
+                    h-full
+                    bg-gradient-to-r
+                    from-blue-500
+                    to-cyan-400
+                    rounded-full
+                    "
+                                            style={{
+                                                width: `${user.profileCompletion}%`
+                                            }}
+                                        />
+                                    </div>
+
+                                    {user.profileCompletion === 100 && (
+                                        <div
+                                            className="
+                    flex
+                    items-center
+                    gap-2
+                    mt-3
+                    text-green-400
+                    text-sm
+                    font-medium
+                    "
+                                        >
+                                            <FaCheckCircle />
+                                            Profile Fully Verified
+                                        </div>
+                                    )}
+                                </>
+                            )
+                        }
+
+
+                        <div
+                            className="
+        flex
+        justify-between
+        items-center
+        "
+                        >
+                            <div>
+
+                                <p className="text-slate-400 text-xs">
+                                    Member Since
+                                </p>
+
+                                <p className="text-white font-medium">
+                                    {memberSince}
+                                </p>
+
+                            </div>
+
+                            <span
+                                className="
+            px-3
+            py-1
+            rounded-full
+            bg-green-500/10
+            text-green-400
+            text-xs
+            "
+                            >
+                                Active
+                            </span>
+
+                        </div>
+
+                    </div>
 
                 </div>
             </div>

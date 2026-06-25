@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import ProjectCard from "./ProjectCard";
-import { getMyProjects } from "../../services/projectService";
+import { getMyProjects, getProjectsByUsername } from "../../services/projectService";
 
 function ProfileProjects({
+    username,
     onStatsLoaded,
     showAll = false,
     setActiveTab
@@ -14,7 +15,7 @@ function ProfileProjects({
 
         const fetchProjects = async () => {
 
-            const response = await getMyProjects();
+            const response = username? await getProjectsByUsername(username) : await getMyProjects();
 
             const projects = response.data.data;
 
@@ -66,7 +67,7 @@ function ProfileProjects({
         text-white
         "
                 >
-                    My Projects
+                    Projects
                 </h2>
 
                 {!showAll && (

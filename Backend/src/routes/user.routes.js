@@ -27,6 +27,7 @@ router.route("/register").post(
     registerUser
 )
 
+
 router.route("/login").post(loginUser)
 
 router.route("/logout").post(verifyJWT,logoutUser)
@@ -45,7 +46,7 @@ router.route("/avatar").patch(verifyJWT,upload.single("avatar"),updateUserAvatar
 
 router.route("/cover-image").patch(verifyJWT,upload.single("coverImage"),updateUserCoverImage)
 
-router.route("/c/:username").get(userProfile)
+router.route("/profile/:username").get(userProfile)
 
 
 export default router

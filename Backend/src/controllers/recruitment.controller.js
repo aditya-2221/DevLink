@@ -35,7 +35,7 @@ const createRecruitment = asyncHandler(async (req, res) => {
         )
     }
 
-    if (!mongoose.Types.ObjectId, isValid(projectId)) {
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
         throw new ApiError(400, "Invalid project ID")
     }
 
@@ -52,15 +52,14 @@ const createRecruitment = asyncHandler(async (req, res) => {
         );
     }
 
-    const recruitment =
-        await Recruitment.create({
-            project: projectId,
-            owner: req.user._id,
-            title,
-            description,
-            requiredSkills,
-            positions
-        })
+    const recruitment = await Recruitment.create({
+        project: projectId,
+        owner: req.user._id,
+        title,
+        description,
+        requiredSkills,
+        positions
+    })
 
     return res.status(201).json(
         new ApiResponse(
@@ -181,6 +180,14 @@ const getAllRecruitments = asyncHandler(async (req, res) => {
         },
         {
             $lookup: {
+                from: "applications",
+                localField: "_id",
+                foreignField: "recruitment",
+                as: "applications"
+            }
+        },
+        {
+            $lookup: {
                 from: "users",
                 localField: "owner",
                 foreignField: "_id",
@@ -189,7 +196,9 @@ const getAllRecruitments = asyncHandler(async (req, res) => {
                     {
                         $project: {
                             _id: 1,
-                            username: 1
+                            username: 1,
+                            avatar: 1
+
                         }
 
                     }
@@ -201,8 +210,28 @@ const getAllRecruitments = asyncHandler(async (req, res) => {
                 project: {
                     $first: "$project"
                 },
+
                 owner: {
                     $first: "$owner"
+                },
+
+                applicantsCount: {
+                    $size: "$applications"
+                },
+
+                acceptedCount: {
+                    $size: {
+                        $filter: {
+                            input: "$applications",
+                            as: "application",
+                            cond: {
+                                $eq: [
+                                    "$$application.status",
+                                    "ACCEPTED"
+                                ]
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -215,7 +244,9 @@ const getAllRecruitments = asyncHandler(async (req, res) => {
                 description: 1,
                 requiredSkills: 1,
                 status: 1,
-                createdAt: 1
+                createdAt: 1,
+                applicantsCount: 1,
+                acceptedCount: 1
             }
         }
     ])
@@ -286,12 +317,40 @@ const getRecruitmentById = asyncHandler(async (req, res) => {
             }
         },
         {
+            $lookup: {
+                from: "applications",
+                localField: "_id",
+                foreignField: "recruitment",
+                as: "applications"
+            }
+        },
+        {
             $addFields: {
                 project: {
                     $first: "$project"
                 },
+
                 owner: {
                     $first: "$owner"
+                },
+
+                applicantsCount: {
+                    $size: "$applications"
+                },
+
+                acceptedCount: {
+                    $size: {
+                        $filter: {
+                            input: "$applications",
+                            as: "application",
+                            cond: {
+                                $eq: [
+                                    "$$application.status",
+                                    "ACCEPTED"
+                                ]
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -304,7 +363,9 @@ const getRecruitmentById = asyncHandler(async (req, res) => {
                 description: 1,
                 requiredSkills: 1,
                 status: 1,
-                createdAt: 1
+                createdAt: 1,
+                applicantsCount: 1,
+                acceptedCount: 1
             }
         }
     ])
@@ -320,6 +381,150 @@ const getRecruitmentById = asyncHandler(async (req, res) => {
 
 })
 
+const getMyRecruitments = asyncHandler(async (req, res) => {
+
+    const {
+        page = 1,
+        limit = 10
+    } = req.query;
+
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+
+    const skip =
+        (pageNumber - 1) *
+        limitNumber;
+
+    const totalRecruitments =
+        await Recruitment.countDocuments({
+            owner: req.user._id
+        });
+
+    const recruitments = await Recruitment.aggregate([
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(
+                    req.user._id
+                )
+            }
+        },
+        {
+            $lookup: {
+                from: "projects",
+                localField: "project",
+                foreignField: "_id",
+                as: "project",
+                pipeline: [
+                    {
+                        $project: {
+                            title: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                foreignField: "_id",
+                localField: "owner",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            username: 1,
+                            fullName: 1,
+                            _id: 1,
+                            avatar: 1,
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: "applications",
+                localField: "_id",
+                foreignField: "recruitment",
+                as: "applications"
+            }
+        },
+        {
+            $addFields: {
+
+                project: {
+                    $first: "$project"
+                },
+
+                owner: {
+                    $first: "$owner"
+                },
+
+                applicantsCount: {
+                    $size: "$applications"
+                },
+
+                acceptedCount: {
+                    $size: {
+                        $filter: {
+                            input: "$applications",
+                            as: "application",
+                            cond: {
+                                $eq: [
+                                    "$$application.status",
+                                    "ACCEPTED"
+                                ]
+                            }
+                        }
+                    }
+                }
+
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1
+            }
+        },
+        {
+            $skip: skip
+        },
+        {
+            $limit: limitNumber
+        },
+        {
+            $project: {
+                project: 1,
+                owner: 1,
+                title: 1,
+                positions: 1,
+                description: 1,
+                requiredSkills: 1,
+                status: 1,
+                createdAt: 1,
+                applicantsCount: 1,
+                acceptedCount: 1
+            }
+        }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                recruitments,
+                page: pageNumber,
+                totalPages: Math.ceil(
+                    totalRecruitments /
+                    limitNumber
+                ),
+                totalRecruitments
+            },
+            "My recruitments fetched successfully"
+        )
+    );
+});
+
 const updateRecruitment = asyncHandler(async (req, res) => {
     const { recruitmentId } = req.params;
 
@@ -328,7 +533,6 @@ const updateRecruitment = asyncHandler(async (req, res) => {
         description,
         requiredSkills,
         positions,
-        status
     } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(recruitmentId)) {
@@ -356,12 +560,7 @@ const updateRecruitment = asyncHandler(async (req, res) => {
         );
     }
 
-    if (status && !["OPEN", "CLOSED"].includes(status)) {
-        throw new ApiError(
-            400,
-            "Invalid recruitment status"
-        );
-    }
+
 
     if (positions !== undefined && positions < 1) {
         throw new ApiError(
@@ -369,6 +568,12 @@ const updateRecruitment = asyncHandler(async (req, res) => {
             "Positions must be greater than 0"
         )
     }
+
+    const acceptedCount = await Application.countDocuments({
+        recruitment: recruitment._id,
+        status: "ACCEPTED"
+    });
+
 
     if (title) {
         recruitment.title = title;
@@ -386,9 +591,9 @@ const updateRecruitment = asyncHandler(async (req, res) => {
         recruitment.positions = positions;
     }
 
-    if (status) {
-        recruitment.status = status;
-    }
+    const finalPositions = positions ?? recruitment.positions;
+
+    recruitment.status = acceptedCount >= finalPositions ? "CLOSED" : "OPEN";
 
     await recruitment.save();
 
@@ -399,7 +604,7 @@ const updateRecruitment = asyncHandler(async (req, res) => {
             "Recruitment updated successfully"
         )
     );
-});
+})
 
 const deleteRecruitment = asyncHandler(async (req, res) => {
     const { recruitmentId } = req.params;
@@ -469,6 +674,22 @@ const deleteRecruitment = asyncHandler(async (req, res) => {
             "Recruitment deleted successfully"
         )
     );
+})
+
+const getRecruitmentSkills = asyncHandler(async (req, res) => {
+
+    const skills = await Recruitment.distinct(
+        "requiredSkills"
+    );
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            skills,
+            "Recruitment skills fetched successfully"
+        )
+    );
+
 });
 
 const applyToRecruitment = asyncHandler(async (req, res) => {
@@ -604,6 +825,92 @@ const getRecruitmentApplications = asyncHandler(async (req, res) => {
 
 })
 
+const getMyApplications = asyncHandler(async (req, res) => {
+
+    const {
+        page = 1,
+        limit = 10
+    } = req.query;
+
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+
+    const skip =(pageNumber - 1) *limitNumber;
+
+    const totalApplications =await Application.countDocuments({
+            applicant: req.user._id
+        });
+
+    const applications = await Application.aggregate([
+        {
+            $match: {
+                applicant: new mongoose.Types.ObjectId(
+                    req.user._id
+                )
+            }
+        },
+        {
+            $lookup: {
+                from: "recruitments",
+                localField: "recruitment",
+                foreignField: "_id",
+                as: "recruitment",
+                pipeline: [
+                    {
+                        $project: {
+                            title: 1,
+                            status: 1,
+                            positions: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                recruitment: {
+                    $first: "$recruitment"
+                }
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                recruitment: 1,
+                status: 1,
+                message: 1,
+                createdAt: 1
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1
+            }
+        },
+        {
+            $skip: skip
+        },
+        {
+            $limit: limitNumber
+        }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                applications,
+                page: pageNumber,
+                totalPages: Math.ceil(
+                    totalApplications /
+                    limitNumber
+                ),
+                totalApplications
+            },
+            "My applications fetched successfully"
+        )
+    );
+});
 
 const acceptApplication = asyncHandler(async (req, res) => {
     const { applicationId } = req.params
@@ -851,10 +1158,12 @@ const rejectApplication = asyncHandler(async (req, res) => {
             "Application rejected successfully"
         )
     );
-});
+})
 
 export {
     createRecruitment, getAllRecruitments, getRecruitmentById, updateRecruitment,
-    deleteRecruitment, applyToRecruitment, getRecruitmentApplications, acceptApplication, rejectApplication
+    deleteRecruitment, applyToRecruitment, getRecruitmentApplications, acceptApplication, rejectApplication, getMyRecruitments,
+    getMyApplications,getRecruitmentSkills
+
 }
 

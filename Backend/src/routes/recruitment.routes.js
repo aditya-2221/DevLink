@@ -10,7 +10,10 @@ import {
     applyToRecruitment,
     getRecruitmentApplications,
     acceptApplication,
-    rejectApplication
+    rejectApplication,
+    getMyRecruitments,
+    getMyApplications,
+    getRecruitmentSkills
 } from "../controllers/recruitment.controller.js";
 
 const router = Router();
@@ -20,6 +23,20 @@ router.use(verifyJWT);
 router.post("/", createRecruitment);
 
 router.get("/", getAllRecruitments);
+
+router.get(
+    "/my-recruitments",
+    getMyRecruitments
+)
+
+router.get(
+    "/my-applications",
+    getMyApplications
+)
+router.get(
+    "/skills",
+    getRecruitmentSkills
+);
 
 router.get("/:recruitmentId", getRecruitmentById);
 

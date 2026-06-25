@@ -28,11 +28,14 @@ function Profile() {
         state => state.auth
     );
 
+
     return (
         <div className="space-y-8">
 
             <ProfileHeader
+                user={user}
                 stats={stats}
+                isOwner={true}
 
                 onEdit={() => {
                     setModalType("profile");
@@ -62,8 +65,8 @@ function Profile() {
                     >
 
                         <div className="space-y-6">
-                            <SkillsCard />
-                            <EducationCard />
+                            <SkillsCard  user={user} />
+                            <EducationCard user={user} />
                         </div>
 
                         <div className="lg:col-span-2">

@@ -78,14 +78,19 @@ function EditProfileModal({
 
             <div
                 className="
-                w-full
-                max-w-2xl
-                bg-slate-950
-                border
-                border-slate-800
-                rounded-3xl
-                p-6
-                "
+    w-full
+    max-w-2xl
+    max-h-[90vh]
+    overflow-y-auto
+    scrollbar-thin
+scrollbar-thumb-slate-700
+scrollbar-track-transparent
+    bg-slate-950
+    border
+    border-slate-800
+    rounded-3xl
+    p-6
+    "
             >
 
                 <div
