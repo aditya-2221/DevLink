@@ -11,8 +11,9 @@ import { Application } from "../models/application.model.js"
 import mongoose from "mongoose"
 import { Team } from "../models/team.model.js"
 import { Task } from "../models/task.model.js"
+import { TaskActivity } from "../models/taskActivity.model.js";
 import { createNotification } from "./notification.controller.js"
-
+import { createTaskActivity } from "../utils/createTaskActivity.js";
 const createTask = asyncHandler(async (req, res) => {
     const { title, description, teamId, assignedTo, priority, dueDate } = req.body
     if (!title?.trim()) {
@@ -74,6 +75,19 @@ const createTask = asyncHandler(async (req, res) => {
         priority,
         dueDate
     })
+    await createTaskActivity({
+
+        task: task._id,
+
+        user: req.user._id,
+
+        action: "TASK_CREATED",
+
+        metadata: {
+            title: task.title
+        }
+
+    });
     if (assignedTo) {
         await createNotification({
             recipient: assignedTo,
@@ -357,7 +371,7 @@ const updateTask = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Team not found for the specified task")
     }
 
-   
+    const changes = {};
 
     const canEdit =
         team.owner.toString() === req.user._id.toString() ||
@@ -391,23 +405,80 @@ const updateTask = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Title cannot be empty")
     }
 
-    if (title) {
-        task.title = title.trim()
+    if (title && title.trim() !== task.title) {
+
+        const previous = task.title;
+
+        task.title = title.trim();
+
+        await createTaskActivity({
+            task: task._id,
+            user: req.user._id,
+            action: "TITLE_UPDATED",
+            metadata: {
+                from: previous,
+                to: task.title
+            }
+        });
+
     }
 
-    if (description !== undefined) {
-        task.description = description
+    if (
+        description !== undefined && description !== task.description) {
+
+        task.description = description;
+
+        await createTaskActivity({
+            task: task._id,
+            user: req.user._id,
+            action: "DESCRIPTION_UPDATED"
+        });
+
     }
 
-    if (priority) {
-        task.priority = priority
-    }
+    if (priority && priority !== task.priority) {
 
+        const previous = task.priority;
+
+        task.priority = priority;
+
+        await createTaskActivity({
+            task: task._id,
+            user: req.user._id,
+            action: "PRIORITY_UPDATED",
+            metadata: {
+                from: previous,
+                to: priority
+            }
+        });
+
+    }
     if (dueDate) {
-        task.dueDate = new Date(dueDate)
+
+        const newDate = new Date(dueDate);
+
+        if (task.dueDate?.getTime() !== newDate.getTime()) {
+
+            const previous = task.dueDate;
+
+            task.dueDate = newDate;
+
+            await createTaskActivity({
+                task: task._id,
+                user: req.user._id,
+                action: "DUE_DATE_UPDATED",
+                metadata: {
+                    from: previous,
+                    to: newDate
+                }
+            });
+
+        }
+
     }
 
     await task.save()
+
 
     return res.status(200).json(
         new ApiResponse(
@@ -457,8 +528,27 @@ const moveTask = asyncHandler(async (req, res) => {
     if (task.status === status.toUpperCase()) {
         throw new ApiError(400, "Status is unchanged")
     }
+
+    const previousStatus = task.status;
     task.status = status.toUpperCase()
     await task.save()
+    await createTaskActivity({
+
+        task: task._id,
+
+        user: req.user._id,
+
+        action: "STATUS_CHANGED",
+
+        metadata: {
+
+            from: previousStatus,
+
+            to: task.status
+
+        }
+
+    });
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -518,8 +608,26 @@ const assignTask = asyncHandler(async (req, res) => {
         )
     }
 
+    const previousAssignee = task.assignedTo;
     task.assignedTo = assignedTo
     await task.save()
+    await createTaskActivity({
+
+        task: task._id,
+
+        user: req.user._id,
+
+        action: "TASK_ASSIGNED",
+
+        metadata: {
+
+            from: previousAssignee,
+
+            to: assignedTo
+
+        }
+
+    });
     await task.populate(
         "assignedTo",
         "fullName username avatar"
@@ -559,7 +667,7 @@ const deleteTask = asyncHandler(async (req, res) => {
         )
     }
 
-    const canEdit =team.owner.toString() === req.user._id.toString() || task.createdBy.toString() === req.user._id.toString() 
+    const canEdit = team.owner.toString() === req.user._id.toString() || task.createdBy.toString() === req.user._id.toString()
     if (!canEdit) {
         throw new ApiError(403, "Unauthorized access to delete task")
     }
@@ -575,4 +683,40 @@ const deleteTask = asyncHandler(async (req, res) => {
     )
 })
 
-export { createTask, getTaskById, getTasks, updateTask, moveTask, assignTask, deleteTask }
+const getTaskActivities = asyncHandler(async (req, res) => {
+
+    const { taskId } = req.params;
+
+    const activities = await TaskActivity.find({
+
+        task: taskId
+
+    }).populate(
+
+        "user",
+
+        "fullName username avatar"
+
+    ).sort({
+
+        createdAt: -1
+
+    });
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            activities,
+
+            "Activities fetched successfully"
+
+        )
+
+    );
+
+});
+
+export { createTask, getTaskById, getTasks, updateTask, moveTask, assignTask, deleteTask, getTaskActivities }

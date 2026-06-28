@@ -8,7 +8,8 @@ import {
     updateTask,
     moveTask,
     assignTask,
-    deleteTask
+    deleteTask,
+    getTaskActivities
 } from "../controllers/task.controller.js";
 
 const router = Router();
@@ -27,6 +28,8 @@ router.patch("/:taskId", updateTask);
 router.patch("/:taskId/status", moveTask);
 
 router.patch("/:taskId/assign", assignTask);
+
+router.get("/:taskId/activity", getTaskActivities);
 
 router.delete("/:taskId", deleteTask);
 

@@ -114,9 +114,10 @@ function Recruitments() {
                             status,
                             skill,
                             sort,
-                            currentPage,
+                            page: currentPage,
                             limit: 10
                         });
+
 
                     dispatch(
                         setRecruitments(
@@ -124,6 +125,8 @@ function Recruitments() {
                                 .recruitments
                         )
                     );
+
+                    
 
                     dispatch(
                         setPagination({
@@ -225,7 +228,7 @@ function Recruitments() {
 
         if (
             activeTab === "applied"
-        )
+        ) {
 
             if (
                 !myApplications?.length
@@ -260,16 +263,16 @@ function Recruitments() {
                     </div>
                 );
             }
-        {
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {
+                return (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
 
-                    {myApplications?.map(
-                        (application) => (
-                            <div
-                                key={application._id}
-                                className="
+                        {myApplications?.map(
+                            (application) => (
+                                <div
+                                    key={application._id}
+                                    className="
 bg-slate-900/50
 border
 border-blue-500/10
@@ -280,44 +283,44 @@ hover:-translate-y-1
 transition-all
 duration-300
 "
-                            >
-                                <h3 className="text-white font-semibold">
-                                    {
-                                        application
-                                            ?.recruitment
-                                            ?.title
-                                    }
-                                </h3>
-                                <p
-                                    className="
+                                >
+                                    <h3 className="text-white font-semibold">
+                                        {
+                                            application
+                                                ?.recruitment
+                                                ?.title
+                                        }
+                                    </h3>
+                                    <p
+                                        className="
     text-slate-500
     text-sm
     mt-2
 "
-                                >
-                                    Applied on{" "}
-                                    {new Date(
-                                        application.createdAt
-                                    ).toLocaleDateString()}
-                                </p>
+                                    >
+                                        Applied on{" "}
+                                        {new Date(
+                                            application.createdAt
+                                        ).toLocaleDateString()}
+                                    </p>
 
-                                <p className="text-slate-400 mt-3 text-sm">
-                                    {
-                                        application
-                                            ?.message
-                                    }
-                                </p>
+                                    <p className="text-slate-400 mt-3 text-sm">
+                                        {
+                                            application
+                                                ?.message
+                                        }
+                                    </p>
 
-                                <div
-                                    className="
+                                    <div
+                                        className="
     flex
     flex-wrap
     gap-3
     mt-4
 "
-                                >
-                                    <div
-                                        className="
+                                    >
+                                        <div
+                                            className="
         px-3
         py-1
         rounded-lg
@@ -325,17 +328,17 @@ duration-300
         text-slate-300
         text-xs
     "
-                                    >
-                                        Positions:
-                                        {" "}
-                                        {
-                                            application?.recruitment
-                                                ?.positions
-                                        }
-                                    </div>
+                                        >
+                                            Positions:
+                                            {" "}
+                                            {
+                                                application?.recruitment
+                                                    ?.positions
+                                            }
+                                        </div>
 
-                                    <div
-                                        className="
+                                        <div
+                                            className="
         px-3
         py-1
         rounded-lg
@@ -343,18 +346,18 @@ duration-300
         text-slate-300
         text-xs
     "
-                                    >
-                                        Recruitment:
-                                        {" "}
-                                        {
-                                            application?.recruitment
-                                                ?.status
-                                        }
+                                        >
+                                            Recruitment:
+                                            {" "}
+                                            {
+                                                application?.recruitment
+                                                    ?.status
+                                            }
+                                        </div>
                                     </div>
-                                </div>
 
-                                <span
-                                    className={`
+                                    <span
+                                        className={`
     inline-flex
     items-center
     mt-4
@@ -365,25 +368,27 @@ duration-300
     font-medium
 
     ${application?.status === "ACCEPTED"
-                                            ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                                                ? "bg-green-500/10 text-green-400 border border-green-500/20"
 
-                                            : application?.status === "REJECTED"
-                                                ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                                                : application?.status === "REJECTED"
+                                                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
 
-                                                : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
-                                        }
+                                                    : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                                            }
 `}
-                                >
-                                    {application?.status}
-                                </span>
-                            </div>
-                        )
-                    )}
+                                    >
+                                        {application?.status}
+                                    </span>
+                                </div>
+                            )
+                        )}
 
-                </div>
+                    </div>
 
-            );
+                );
+            }
         }
+
 
         const data = activeTab === "my" ? myRecruitments : recruitments;
 
