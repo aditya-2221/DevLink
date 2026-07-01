@@ -1,72 +1,123 @@
-import mongoose,{Schema} from "mongoose"
+import mongoose, { Schema } from "mongoose";
 
-const taskSchema = new mongoose.Schema(
-{
-    title: {
-        type: String,
-        required: true,
-        trim: true
+const attachmentSchema = new Schema(
+    {
+        url: {
+            type: String,
+            required: true
+        },
+
+        public_id: {
+            type: String,
+            required: true
+        },
+
+        fileName: {
+            type: String,
+            required: true
+        },
+
+        fileType: {
+            type: String,
+            required: true
+        },
+
+        size: {
+            type: Number,
+            required: true
+        },
+
+        uploadedBy: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true
+        },
+
+        uploadedAt: {
+            type: Date,
+            default: Date.now
+        },
+        resourceType:{
+            type:String,
+            required:true
+        }
     },
-
-    description: {
-        type: String,
-        default: ""
-    },
-
-    team: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Team",
-        required: true
-    },
-
-    assignedTo: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
-    },
-
-    createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true
-    },
-
-    status: {
-        type: String,
-        enum: [
-            "TODO",
-            "IN_PROGRESS",
-            "DONE"
-        ],
-        default: "TODO"
-    },
-
-    priority: {
-        type: String,
-        enum: [
-            "LOW",
-            "MEDIUM",
-            "HIGH"
-        ],
-        default: "MEDIUM"
-    },
-
-    dueDate: {
-        type: Date
+    {
+        _id: true
     }
-},
-{
-    timestamps: true
-})
+);
+
+const taskSchema = new Schema(
+    {
+        title: {
+            type: String,
+            required: true,
+            trim: true
+        },
+
+        description: {
+            type: String,
+            default: ""
+        },
+
+        team: {
+            type: Schema.Types.ObjectId,
+            ref: "Team",
+            required: true
+        },
+
+        assignedTo: {
+            type: Schema.Types.ObjectId,
+            ref: "User"
+        },
+
+        createdBy: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true
+        },
+
+        status: {
+            type: String,
+            enum: [
+                "TODO",
+                "IN_PROGRESS",
+                "DONE"
+            ],
+            default: "TODO"
+        },
+
+        priority: {
+            type: String,
+            enum: [
+                "LOW",
+                "MEDIUM",
+                "HIGH"
+            ],
+            default: "MEDIUM"
+        },
+
+        dueDate: {
+            type: Date
+        },
+
+        attachments: [attachmentSchema]
+    },
+    {
+        timestamps: true
+    }
+);
+
 taskSchema.index({
     team: 1
-})
+});
 
 taskSchema.index({
     assignedTo: 1
-})
+});
 
 taskSchema.index({
     status: 1
-})
+});
 
-export const Task = mongoose.model("Task",taskSchema)
+export const Task = mongoose.model("Task", taskSchema);

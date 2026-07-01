@@ -34,9 +34,44 @@ export const removeMember = (
 
 export const createAnnouncement = (
     teamId,
-    message
+    title,
+    content
 ) =>
     api.post(
         `/teams/${teamId}/announcements`,
-        { message }
+        {
+            title,
+            content
+        }
+    );
+export const getAnnouncements = (teamId) =>
+    api.get(
+        `/teams/${teamId}/announcements`
+    );
+
+export const updateAnnouncement = (
+    teamId,
+    announcementId,
+    title,
+    content
+) =>
+    api.patch(
+        `/teams/${teamId}/announcements/${announcementId}`,
+        { content: message }
+    );
+
+export const deleteAnnouncement = (
+    teamId,
+    announcementId
+) =>
+    api.delete(
+        `/teams/${teamId}/announcements/${announcementId}`
+    );
+
+export const togglePinAnnouncement = (
+    teamId,
+    announcementId
+) =>
+    api.patch(
+        `/teams/${teamId}/announcements/${announcementId}/pin`
     );

@@ -48,3 +48,26 @@ export const deleteTask = (
     api.delete(
         `/tasks/${taskId}`
     );
+
+export const uploadAttachments = (
+    taskId,
+    formData
+) =>
+    api.post(
+        `/tasks/${taskId}/attachments`,
+        formData,
+        {
+            headers: {
+                "Content-Type":
+                    "multipart/form-data"
+            }
+        }
+    );
+
+export const deleteAttachment = (
+    taskId,
+    attachmentId
+) =>
+    api.delete(
+        `/tasks/${taskId}/attachments/${attachmentId}`
+    );

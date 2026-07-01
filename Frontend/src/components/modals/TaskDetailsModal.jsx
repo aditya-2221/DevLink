@@ -4,15 +4,21 @@ import {
     Flag,
     User,
     Pencil,
-    Trash2,
     History,
     UserPlus,
     RefreshCw,
-    PlusCircle
+    PlusCircle,
+    Paperclip,
+    Download,
+    Upload,
+    File,
+    Image,
+    FileText,
+    Trash2
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { updateTask } from "../../services/taskService";
-import { assignTask, moveTask } from "../../services/taskService";
+import { assignTask, moveTask, uploadAttachments, deleteAttachment } from "../../services/taskService";
 import { useState, useEffect } from "react";
 
 import { getTaskActivities } from "../../services/taskActivityService";
@@ -56,12 +62,19 @@ function TaskDetailsModal({
     const [activities, setActivities] = useState([]);
     const [activityLoading, setActivityLoading] = useState(false);
 
+    const [uploading, setUploading] = useState(false);
+    const [deletingAttachment, setDeletingAttachment] = useState("");
+    const [attachments, setAttachments] = useState(task.attachments || []);
+
+
     const [formData, setFormData] = useState({
         title: "",
         description: "",
         priority: "",
         dueDate: ""
     });
+
+
 
     const handleDelete = async () => {
 
@@ -171,6 +184,142 @@ function TaskDetailsModal({
             setStatusLoading(false);
 
         }
+
+    };
+    const handleUploadAttachments = async (e) => {
+
+        const files = Array.from(e.target.files);
+
+        if (files.length === 0) return;
+
+        try {
+
+            setUploading(true);
+
+            const formData = new FormData();
+
+            files.forEach(file => {
+                formData.append("attachments", file);
+            });
+
+            const res = await uploadAttachments(
+                task._id,
+                formData
+            );
+
+            setSelectedTask(res.data.data);
+
+            await refreshTasks();
+
+            await fetchActivities();
+
+            toast.success("Attachments uploaded successfully");
+
+        } catch (err) {
+
+            toast.error(
+                err?.response?.data?.message ||
+                "Failed to upload attachments"
+            );
+
+        } finally {
+
+            setUploading(false);
+
+            e.target.value = "";
+
+        }
+
+    };
+    const handleDeleteAttachment = async (attachmentId) => {
+
+        try {
+
+            setDeletingAttachment(attachmentId);
+
+            const res = await deleteAttachment(
+                task._id,
+                attachmentId
+            );
+
+            setSelectedTask(res.data.data);
+
+            await refreshTasks();
+
+            await fetchActivities();
+
+            toast.success("Attachment deleted");
+
+        } catch (err) {
+
+            toast.error(
+                err?.response?.data?.message ||
+                "Failed to delete attachment"
+            );
+
+        } finally {
+
+            setDeletingAttachment("");
+
+        }
+
+    };
+    const formatFileSize = (bytes) => {
+
+        if (!bytes) return "0 B";
+
+        const sizes = [
+            "B",
+            "KB",
+            "MB",
+            "GB"
+        ];
+
+        const i = Math.floor(
+            Math.log(bytes) / Math.log(1024)
+        );
+
+        return (
+            (bytes / Math.pow(1024, i)).toFixed(1) +
+            " " +
+            sizes[i]
+        );
+
+    };
+    const getFileIcon = (type) => {
+
+        if (!type)
+            return (
+                <File
+                    size={18}
+                    className="text-slate-400"
+                />
+            );
+
+        if (type.startsWith("image")) {
+            return (
+                <Image
+                    size={18}
+                    className="text-green-400"
+                />
+            );
+        }
+
+        if (type.includes("pdf")) {
+            return (
+                <FileText
+                    size={18}
+                    className="text-red-400"
+                />
+            );
+        }
+
+        return (
+            <File
+                size={18}
+                className="text-cyan-400"
+            />
+        );
 
     };
 
@@ -594,6 +743,55 @@ function TaskDetailsModal({
                 return {
 
                     icon: (
+                        <div
+                            className="
+                h-8
+                w-8
+
+                rounded-xl
+
+                bg-cyan-500/15
+
+                flex
+                items-center
+                justify-center
+                "
+                        >
+                            <Paperclip
+                                size={16}
+                                className="text-cyan-400"
+                            />
+                        </div>
+                    ),
+
+                    title: "Attachment Uploaded",
+
+                    subtitle: (
+
+                        <div className="space-y-1">
+
+                            <p className="text-slate-300">
+
+                                Uploaded
+
+                                <span className="font-semibold text-cyan-300">
+
+                                    {" "}
+                                    {activity.metadata.fileName}
+
+                                </span>
+
+                            </p>
+
+                        </div>
+
+                    )
+
+                };
+
+                return {
+
+                    icon: (
                         <Paperclip
                             size={16}
                             className="text-cyan-400"
@@ -606,6 +804,58 @@ function TaskDetailsModal({
                         <span className="text-cyan-300 font-medium">
                             {activity.metadata.fileName}
                         </span>
+                    )
+
+                };
+
+
+            case "ATTACHMENT_REMOVED":
+
+                return {
+
+                    icon: (
+                        <div
+                            className="
+                h-8
+                w-8
+
+                rounded-xl
+
+                bg-red-500/15
+
+                flex
+                items-center
+                justify-center
+                "
+                        >
+                            <Trash2
+                                size={16}
+                                className="text-red-400"
+                            />
+                        </div>
+                    ),
+
+                    title: "Attachment Removed",
+
+                    subtitle: (
+
+                        <div className="space-y-1">
+
+                            <p className="text-slate-300">
+
+                                Removed
+
+                                <span className="font-semibold text-red-300">
+
+                                    {" "}
+                                    {activity.metadata.fileName}
+
+                                </span>
+
+                            </p>
+
+                        </div>
+
                     )
 
                 };
@@ -1245,6 +1495,264 @@ function TaskDetailsModal({
                             )
 
                     }
+
+                </div>
+
+
+                {/* Attachments */}
+
+                <div className="mt-10">
+
+                    <div className="flex items-center justify-between">
+
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+
+                            <Paperclip size={18} />
+
+                            Attachments
+
+                            {task.attachments?.length > 0 && (
+
+                                <span
+                                    className="
+                        ml-2
+
+                        rounded-full
+
+                        bg-cyan-500/15
+
+                        px-2
+                        py-1
+
+                        text-xs
+
+                        text-cyan-300
+                    "
+                                >
+                                    {task.attachments.length}
+                                </span>
+
+                            )}
+
+                        </h3>
+
+                        <label
+                            className={`
+                cursor-pointer
+
+                rounded-xl
+
+                px-4
+                py-2
+
+                text-sm
+
+                font-medium
+
+                transition
+
+                ${uploading
+                                    ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+                                    : "bg-cyan-600 hover:bg-cyan-500 text-white"
+                                }
+            `}
+                        >
+
+                            <Upload size={16} className="inline mr-2" />
+
+                            {uploading ? "Uploading..." : "Upload"}
+
+                            <input
+                                type="file"
+                                hidden
+                                multiple
+                                disabled={uploading}
+                                onChange={handleUploadAttachments}
+                            />
+
+                        </label>
+
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+
+                        {task.attachments?.length === 0 ? (
+
+                            <div
+                                className="
+                    rounded-2xl
+
+                    border
+                    border-dashed
+                    border-slate-700
+
+                    p-8
+
+                    text-center
+
+                    text-slate-500
+                "
+                            >
+
+                                <Paperclip
+                                    size={26}
+                                    className="mx-auto mb-3 opacity-60"
+                                />
+
+                                    No attachments yet <br />
+
+                                <span>Upload design files, documents,or images related to this task.</span>
+
+                            </div>
+
+                        ) : (
+
+                            task.attachments?.map((attachment) => (
+
+                                <div
+                                    key={attachment._id}
+                                    className="
+                        flex
+
+                        items-center
+
+                        justify-between
+
+                        rounded-2xl
+
+                        border
+                        border-white/5
+
+                        bg-slate-900/50
+
+                        p-4
+
+                        hover:border-cyan-500/20
+                        hover:shadow-lg
+hover:scale-[1.01]
+transition-all
+duration-200
+                        transition
+                    "
+                                >
+
+                                    <div className="flex items-center gap-4">
+
+                                        <div
+                                            className="
+                                h-11
+                                w-11
+
+                                rounded-xl
+
+                                bg-cyan-500/10
+
+                                flex
+                                items-center
+                                justify-center
+                            "
+                                        >
+
+                                            {getFileIcon(attachment.fileType)}
+
+                                        </div>
+
+                                        <div>
+
+                                            <h4 className="font-medium text-white">
+
+                                                {attachment.fileName}
+
+                                            </h4>
+
+                                            <p className="mt-1 text-xs text-slate-500">
+
+                                                {formatFileSize(attachment.size)}
+
+                                                {" • "}
+
+                                                {attachment.uploadedBy?.fullName}
+
+                                            </p>
+
+                                            <p className="text-xs text-slate-600">
+
+                                                {formatDistanceToNow(
+                                                    new Date(attachment.uploadedAt),
+                                                    {
+                                                        addSuffix: true
+                                                    }
+                                                )}
+
+                                            </p>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+
+                                        <a
+                                            href={attachment.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="
+                                rounded-lg
+
+                                p-2
+
+                                text-cyan-400
+
+                                hover:bg-cyan-500/10
+
+                                transition
+                            "
+                                        >
+
+                                            <Download size={18} />
+
+                                        </a>
+
+                                        <button
+
+                                            onClick={() =>
+                                                handleDeleteAttachment(
+                                                    attachment._id
+                                                )
+                                            }
+
+                                            disabled={
+                                                deletingAttachment === attachment._id
+                                            }
+
+                                            className="
+                                rounded-lg
+
+                                p-2
+
+                                text-red-400
+
+                                hover:bg-red-500/10
+
+                                transition
+
+                                disabled:opacity-50
+                            "
+                                        >
+
+                                            <Trash2 size={18} />
+
+                                        </button>
+
+                                    </div>
+
+                                </div>
+
+                            ))
+
+                        )}
+
+                    </div>
 
                 </div>
                 <div className="mt-10">

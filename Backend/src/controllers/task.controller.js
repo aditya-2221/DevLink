@@ -14,6 +14,32 @@ import { Task } from "../models/task.model.js"
 import { TaskActivity } from "../models/taskActivity.model.js";
 import { createNotification } from "./notification.controller.js"
 import { createTaskActivity } from "../utils/createTaskActivity.js";
+import path from "path";
+
+
+
+const ALLOWED_FILE_TYPES = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".txt",
+    ".json",
+    ".zip",
+    ".rar",
+    ".mp4"
+];
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+
 const createTask = asyncHandler(async (req, res) => {
     const { title, description, teamId, assignedTo, priority, dueDate } = req.body
     if (!title?.trim()) {
@@ -327,9 +353,27 @@ const getTaskById = asyncHandler(async (req, res) => {
                 ]
             }
         },
+        {
+            $lookup: {
+                from: "users",
+                localField: "attachments.uploadedBy",
+                foreignField: "_id",
+                as: "attachmentUsers",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
 
         {
             $addFields: {
+
                 assignedTo: {
                     $first: "$assignedTo"
                 },
@@ -340,7 +384,46 @@ const getTaskById = asyncHandler(async (req, res) => {
 
                 team: {
                     $first: "$team"
+                },
+
+                attachments: {
+                    $map: {
+                        input: "$attachments",
+                        as: "attachment",
+                        in: {
+                            _id: "$$attachment._id",
+                            url: "$$attachment.url",
+                            public_id: "$$attachment.public_id",
+                            resourceType: "$$attachment.resourceType",
+                            fileName: "$$attachment.fileName",
+                            fileType: "$$attachment.fileType",
+                            size: "$$attachment.size",
+                            uploadedAt: "$$attachment.uploadedAt",
+
+                            uploadedBy: {
+                                $first: {
+                                    $filter: {
+                                        input: "$attachmentUsers",
+                                        as: "user",
+                                        cond: {
+                                            $eq: [
+                                                "$$user._id",
+                                                "$$attachment.uploadedBy"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+                    }
                 }
+
+            }
+        },
+        {
+            $project: {
+                attachmentUsers: 0
             }
         }
     ])
@@ -683,6 +766,263 @@ const deleteTask = asyncHandler(async (req, res) => {
     )
 })
 
+const uploadAttachments = asyncHandler(async (req, res) => {
+
+    const { taskId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+        throw new ApiError(400, "Invalid task ID");
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new ApiError(404, "Task not found");
+    }
+
+    const team = await Team.findById(task.team);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    const canUpload =
+        team.owner.toString() === req.user._id.toString() ||
+        task.createdBy.toString() === req.user._id.toString() ||
+        task.assignedTo?.toString() === req.user._id.toString();
+
+    if (!canUpload) {
+        throw new ApiError(
+            403,
+            "You are not allowed to upload attachments."
+        );
+    }
+
+    if (!req.files || req.files.length === 0) {
+        throw new ApiError(
+            400,
+            "Please upload at least one attachment."
+        );
+    }
+
+    const uploadedAttachments = [];
+
+    for (const file of req.files) {
+
+        const duplicate = task.attachments.find(
+            attachment =>
+                attachment.fileName === file.originalname &&
+                attachment.size === file.size
+        );
+
+        if (duplicate) {
+            continue;
+        }
+
+        const cloudinaryResponse = await uploadOnCloudinary(file.path);
+
+        if (!cloudinaryResponse) {
+            throw new ApiError(
+                500,
+                `Failed to upload ${file.originalname}`
+            );
+        }
+
+        const attachment = {
+
+            url: cloudinaryResponse.secure_url,
+
+            public_id: cloudinaryResponse.public_id,
+
+            resourceType:
+                cloudinaryResponse.resource_type,
+
+            fileName: file.originalname,
+
+            fileType: file.mimetype,
+
+            size: file.size,
+
+            uploadedBy: req.user._id,
+
+            uploadedAt: new Date()
+
+        };
+
+        task.attachments.push(attachment);
+
+        uploadedAttachments.push(attachment);
+
+        await createTaskActivity({
+
+            task: task._id,
+
+            user: req.user._id,
+
+            action: "ATTACHMENT_UPLOADED",
+
+            metadata: {
+                fileName: attachment.fileName
+            }
+
+        });
+
+    }
+
+    await task.save();
+
+    await task.populate(
+        "attachments.uploadedBy",
+        "fullName username avatar"
+    );
+
+    if (uploadedAttachments.length === 0) {
+        throw new ApiError(
+            400,
+            "All selected files already exist in this task."
+        );
+    }
+
+    if (
+        task.assignedTo && task.assignedTo.toString() !== req.user._id.toString()
+    ) {
+
+        await createNotification({
+
+            recipient: task.assignedTo,
+
+            sender: req.user._id,
+
+            type: "TASK_ATTACHMENT",
+
+            message: `${req.user.fullName} uploaded ${uploadedAttachments.length} attachment(s) to "${task.title}".`,
+
+            referenceId: task._id
+
+        });
+
+    }
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            task,
+
+            "Attachments uploaded successfully."
+
+        )
+
+    );
+
+});
+
+const deleteAttachment = asyncHandler(async (req, res) => {
+
+    const { taskId, attachmentId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+        throw new ApiError(400, "Invalid task ID");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(attachmentId)) {
+        throw new ApiError(400, "Invalid attachment ID");
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new ApiError(404, "Task not found");
+    }
+
+    const team = await Team.findById(task.team);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    const attachment = task.attachments.id(attachmentId);
+
+    if (!attachment) {
+        throw new ApiError(404, "Attachment not found");
+    }
+
+    const canDelete =
+        team.owner.toString() === req.user._id.toString() ||
+        task.createdBy.toString() === req.user._id.toString() ||
+        attachment.uploadedBy.toString() === req.user._id.toString();
+
+    if (!canDelete) {
+        throw new ApiError(
+            403,
+            "You are not allowed to delete this attachment."
+        );
+    }
+
+    await deleteFromCloudinary(
+        attachment.public_id,
+        attachment.resourceType
+    );
+
+    const fileName = attachment.fileName;
+
+    task.attachments.pull(attachmentId);
+
+    await task.save();
+
+    await createTaskActivity({
+
+        task: task._id,
+
+        user: req.user._id,
+
+        action: "ATTACHMENT_REMOVED",
+
+        metadata: {
+            fileName
+        }
+
+    });
+
+    if (
+        task.assignedTo &&
+        task.assignedTo.toString() !== req.user._id.toString()
+    ) {
+
+        await createNotification({
+
+            recipient: task.assignedTo,
+
+            sender: req.user._id,
+
+            type: "TASK_ATTACHMENT_REMOVED",
+
+            message: `${req.user.fullName} removed "${fileName}" from "${task.title}".`,
+
+            referenceId: task._id
+
+        });
+
+    }
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            task,
+
+            "Attachment deleted successfully."
+
+        )
+
+    );
+
+});
+
 const getTaskActivities = asyncHandler(async (req, res) => {
 
     const { taskId } = req.params;
@@ -719,4 +1059,4 @@ const getTaskActivities = asyncHandler(async (req, res) => {
 
 });
 
-export { createTask, getTaskById, getTasks, updateTask, moveTask, assignTask, deleteTask, getTaskActivities }
+export { createTask, getTaskById, getTasks, updateTask, moveTask, assignTask, deleteTask, uploadAttachments, deleteAttachment, getTaskActivities }

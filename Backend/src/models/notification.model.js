@@ -23,7 +23,10 @@ const notificationSchema = new Schema(
                 "PROJECT_COMMENTED",
                 "TEAM_JOINED",
                 "TEAM_ANNOUNCEMENT",
+                "TEAM_RESOURCE",
                 "TASK_ASSIGNED",
+                "TASK_ATTACHMENT",
+                "TASK_ATTACHMENT_REMOVED",
                 "TEAM_REMOVED",
                 "TEAM_DELETED",
                 "PROJECT_DELETED"

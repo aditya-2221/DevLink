@@ -419,7 +419,7 @@ const removeMember = asyncHandler(async (req, res) => {
 
 const createAnnouncement = asyncHandler(async (req, res) => {
     const { teamId } = req.params
-    const { message } = req.body
+    const { title, content } = req.body
     if (!mongoose.Types.ObjectId.isValid(teamId)) {
         throw new ApiError(400, "Invalid team ID")
     }
@@ -430,14 +430,23 @@ const createAnnouncement = asyncHandler(async (req, res) => {
     if (team.owner.toString() !== req.user._id.toString()) {
         throw new ApiError(403, "Forbidden request to create announcements")
     }
-    if (!message?.trim()) {
-        throw new ApiError(400, "Message cannot be empty")
+    if (!title?.trim()) {
+        throw new ApiError(400, "Announcement title is required");
     }
-    team.announcements.push({
-        content: message.trim(),
-        createdBy: req.user._id
-    })
 
+    if (!content?.trim()) {
+        throw new ApiError(400, "Announcement content is required");
+    }
+
+    team.announcements.push({
+
+        title: title.trim(),
+
+        content: content.trim(),
+
+        createdBy: req.user._id
+
+    });
     await team.save()
 
     const announcement = team.announcements[team.announcements.length - 1]
@@ -466,6 +475,255 @@ const createAnnouncement = asyncHandler(async (req, res) => {
 
 })
 
+const getAnnouncements = asyncHandler(async (req, res) => {
+
+    const { teamId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+        throw new ApiError(400, "Invalid team ID");
+    }
+
+    const team = await Team.findById(teamId);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    const isOwner =
+        team.owner.toString() === req.user._id.toString();
+
+    const isMember = team.members.some(
+        member =>
+            member.user.toString() ===
+            req.user._id.toString()
+    );
+
+    if (!(isOwner || isMember)) {
+        throw new ApiError(
+            403,
+            "Unauthorized to view announcements"
+        );
+    }
+
+    const [result] = await Team.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(teamId)
+            }
+        },
+
+        {
+            $unwind: "$announcements"
+        },
+
+        {
+            $lookup: {
+                from: "users",
+                localField: "announcements.createdBy",
+                foreignField: "_id",
+                as: "creator",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+
+        {
+            $addFields: {
+                "announcements.createdBy": {
+                    $first: "$creator"
+                }
+            }
+        },
+
+        {
+            $sort: {
+                "announcements.createdAt": -1
+            }
+        },
+
+        {
+            $group: {
+                _id: "$_id",
+                announcements: {
+                    $push: "$announcements"
+                }
+            }
+        }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            result?.announcements || [],
+            "Announcements fetched successfully"
+        )
+    );
+
+});
+
+const updateAnnouncement = asyncHandler(async (req, res) => {
+
+    const { teamId, announcementId } = req.params;
+    const { title, content } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+        throw new ApiError(400, "Invalid team ID");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(announcementId)) {
+        throw new ApiError(400, "Invalid announcement ID");
+    }
+
+    if (!title?.trim()) {
+        throw new ApiError(400, "Announcement title is required");
+    }
+
+    if (!content?.trim()) {
+        throw new ApiError(400, "Announcement content is required");
+    }
+
+    const team = await Team.findById(teamId);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    if (team.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(
+            403,
+            "Only team owner can update announcements"
+        );
+    }
+
+    const announcement = team.announcements.id(announcementId);
+
+    if (!announcement) {
+        throw new ApiError(404, "Announcement not found");
+    }
+
+    announcement.title = title.trim();
+    announcement.content = content.trim();
+
+    await team.save();
+
+    await team.populate(
+        "announcements.createdBy",
+        "fullName username avatar"
+    );
+
+    const updatedAnnouncement =
+        team.announcements.id(announcementId);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updatedAnnouncement,
+            "Announcement updated successfully"
+        )
+    );
+
+});
+
+const deleteAnnouncement = asyncHandler(async (req, res) => {
+
+    const { teamId, announcementId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+        throw new ApiError(400, "Invalid team ID");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(announcementId)) {
+        throw new ApiError(400, "Invalid announcement ID");
+    }
+
+    const team = await Team.findById(teamId);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    if (team.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(
+            403,
+            "Only team owner can delete announcements"
+        );
+    }
+
+    const announcement = team.announcements.id(announcementId);
+
+    if (!announcement) {
+        throw new ApiError(404, "Announcement not found");
+    }
+
+    announcement.deleteOne();
+
+    await team.save();
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {},
+            "Announcement deleted successfully"
+        )
+    );
+
+});
+const togglePinAnnouncement = asyncHandler(async (req, res) => {
+
+    const { teamId, announcementId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+        throw new ApiError(400, "Invalid team ID");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(announcementId)) {
+        throw new ApiError(400, "Invalid announcement ID");
+    }
+
+    const team = await Team.findById(teamId);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    if (team.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(
+            403,
+            "Only the team owner can pin announcements"
+        );
+    }
+
+    const announcement =
+        team.announcements.id(announcementId);
+
+    if (!announcement) {
+        throw new ApiError(404, "Announcement not found");
+    }
+
+    announcement.isPinned =
+        !announcement.isPinned;
+
+    await team.save();
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            announcement,
+            announcement.isPinned
+                ? "Announcement pinned"
+                : "Announcement unpinned"
+        )
+    );
+
+});
+
 const deleteTeam = asyncHandler(async (req, res) => {
     const { teamId } = req.params
     if (!mongoose.Types.ObjectId.isValid(teamId)) {
@@ -481,7 +739,7 @@ const deleteTeam = asyncHandler(async (req, res) => {
 
     for (const member of team.members) {
 
-        if ( member.user.toString() === req.user._id.toString()) {
+        if (member.user.toString() === req.user._id.toString()) {
             continue
         }
         await createNotification({
@@ -501,4 +759,6 @@ const deleteTeam = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {}, "Team deleted successfully"))
 })
 
-export { createTeam, getMyTeams, getTeamById, updateTeam, addMember, removeMember, createAnnouncement, deleteTeam }
+export { createTeam, getMyTeams, getTeamById, updateTeam, addMember, removeMember,
+     createAnnouncement, getAnnouncements, updateAnnouncement, deleteAnnouncement,togglePinAnnouncement ,deleteTeam 
+}

@@ -30,18 +30,41 @@ const teamSchema = new Schema({
         }
     }],
 
-    announcements: [{
-        content: String,
-        createdBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User"
-        },
-        createdAt: {
-            type: Date,
-            default: Date.now
+    announcements: [
+
+        {
+
+            title: {
+                type: String,
+                required: true,
+                trim: true
+            },
+
+            content: {
+                type: String,
+                required: true,
+                trim: true
+            },
+
+            createdBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User"
+            },
+
+            isPinned: {
+                type: Boolean,
+                default: false
+            },
+
+            createdAt: {
+                type: Date,
+                default: Date.now
+            }
+
         }
-    }]
-},{timestamps:true})
+
+    ]
+}, { timestamps: true })
 
 
 teamSchema.index({

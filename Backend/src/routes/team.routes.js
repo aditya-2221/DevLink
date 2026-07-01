@@ -9,7 +9,11 @@ import {
     deleteTeam,
     addMember,
     removeMember,
-    createAnnouncement
+    createAnnouncement,
+    getAnnouncements,
+    updateAnnouncement,
+    togglePinAnnouncement,
+    deleteAnnouncement
 } from "../controllers/team.controller.js";
 
 const router = Router();
@@ -34,5 +38,24 @@ router.delete("/:teamId/members/:userId", removeMember);
 
 
 router.post("/:teamId/announcements", createAnnouncement);
+
+router.get(
+    "/:teamId/announcements",
+    getAnnouncements
+);
+
+router.patch(
+    "/:teamId/announcements/:announcementId",
+    updateAnnouncement
+);
+router.patch(
+    "/:teamId/announcements/:announcementId/pin",
+    togglePinAnnouncement
+);
+
+router.delete(
+    "/:teamId/announcements/:announcementId",
+    deleteAnnouncement
+);
 
 export default router;

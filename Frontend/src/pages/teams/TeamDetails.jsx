@@ -4,6 +4,7 @@ import TaskColumn from "../../components/ui/TaskColumn";
 import CreateTaskModal from "../../components/modals/CreateTaskModal";
 import TaskBoard from "../../components/ui/TaskBoard";
 import TaskDetailsModal from "../../components/modals/TaskDetailsModal";
+import ResourcesTab from "./ResourcesTab";
 
 import {
     Users,
@@ -13,10 +14,19 @@ import {
     Megaphone,
     Crown,
     CalendarDays,
-    ShieldCheck
+    ShieldCheck,
+    FolderOpen
 } from "lucide-react";
 
-import { getTeamById } from "../../services/teamService";
+import {
+    getTeamById,
+    createAnnouncement,
+    getAnnouncements,
+    updateAnnouncement,
+    deleteAnnouncement,
+    togglePinAnnouncement
+} from "../../services/teamService";
+
 import { getTeamTasks } from "../../services/taskService";
 
 function TeamDetails() {
@@ -43,6 +53,12 @@ function TeamDetails() {
 
     const [activeTab, setActiveTab] = useState("overview");
     const [showCreateTask, setShowCreateTask] = useState(false);
+
+    const [announcements, setAnnouncements] = useState([]);
+    const [announcementTitle, setAnnouncementTitle] = useState("");
+    const [announcementContent, setAnnouncementContent] = useState("");
+    const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+    const [announcementLoading, setAnnouncementLoading] = useState(false);
 
 
     const fetchTeam = async () => {
@@ -72,9 +88,163 @@ function TeamDetails() {
         }
 
     };
+    const fetchAnnouncements = async () => {
+
+        try {
+
+            const res = await getAnnouncements(teamId);
+
+            setAnnouncements(res.data.data);
+
+        }
+
+        catch (err) {
+
+            console.log(err);
+
+        }
+
+    };
+    const handleCreateAnnouncement = async () => {
+
+        if (
+            !announcementTitle.trim() ||
+            !announcementContent.trim()
+        ) {
+            return;
+        }
+
+        try {
+
+            setAnnouncementLoading(true);
+
+            await createAnnouncement(
+                teamId,
+                announcementTitle,
+                announcementContent
+            );
+
+            setAnnouncementTitle("");
+            setAnnouncementContent("");
+
+            await fetchAnnouncements();
+
+        }
+
+        catch (err) {
+
+            console.log(err);
+
+        }
+
+        finally {
+
+            setAnnouncementLoading(false);
+
+        }
+
+    };
+    const handleUpdateAnnouncement = async () => {
+
+        if (!editingAnnouncement) return;
+
+        if (
+            !announcementTitle.trim() ||
+            !announcementContent.trim()
+        ) {
+            return;
+        }
+
+        try {
+
+            setAnnouncementLoading(true);
+
+            await updateAnnouncement(
+
+                teamId,
+
+                editingAnnouncement._id,
+
+                announcementTitle,
+
+                announcementContent
+
+            );
+
+            setEditingAnnouncement(null);
+
+            setAnnouncementTitle("");
+
+            setAnnouncementContent("");
+
+            await fetchAnnouncements();
+
+        }
+
+        catch (err) {
+
+            console.log(err);
+
+        }
+
+        finally {
+
+            setAnnouncementLoading(false);
+
+        }
+
+    };
+    const handleDeleteAnnouncement = async (announcementId) => {
+
+        try {
+
+            await deleteAnnouncement(
+
+                teamId,
+
+                announcementId
+
+            );
+
+            await fetchAnnouncements();
+
+        }
+
+        catch (err) {
+
+            console.log(err);
+
+        }
+
+    };
+    const handleTogglePin = async (
+        announcementId
+    ) => {
+
+        try {
+
+            await togglePinAnnouncement(
+                teamId,
+                announcementId
+            );
+
+            await fetchAnnouncements();
+
+        }
+
+        catch (err) {
+
+            console.log(err);
+
+        }
+
+    };
+
+
     useEffect(() => {
 
         fetchTeam();
+        fetchAnnouncements()
 
     }, [teamId]);
 
@@ -394,14 +564,19 @@ function TeamDetails() {
                         icon: Users
                     },
                     {
+                        id: "resources",
+                        icon: FolderOpen
+                    },
+
+                    {
                         id: "announcements",
                         icon: Megaphone
                     },
                     {
                         id: "settings",
                         icon: Settings
-                    }
-
+                    },
+                    
                 ].map((tab) => {
 
                     const Icon = tab.icon;
@@ -963,15 +1138,542 @@ function TeamDetails() {
 
                 )}
 
+
                 {/* Announcements */}
 
                 {activeTab === "announcements" && (
 
-                    <div className="text-slate-400">
+                    <div className="space-y-8">
 
-                        Announcement module coming next.
+                        {team.isOwner && (
+
+                            <div
+                                className="
+                rounded-2xl
+
+                bg-slate-800/40
+
+                border
+                border-blue-500/10
+
+                p-6
+                "
+                            >
+
+                                <h2 className="text-white text-xl font-semibold mb-5">
+
+                                    {editingAnnouncement
+                                        ? "Edit Announcement"
+                                        : "New Announcement"}
+
+                                </h2>
+
+                                <input
+                                    type="text"
+                                    value={announcementTitle}
+                                    onChange={(e) =>
+                                        setAnnouncementTitle(e.target.value)
+                                    }
+                                    placeholder="Announcement title"
+
+                                    className="
+        w-full
+
+        rounded-xl
+
+        bg-slate-900/60
+
+        border
+        border-slate-700
+
+        px-4
+        py-3
+
+        text-white
+
+        outline-none
+
+        focus:border-blue-500
+    "
+                                />
+
+                                <textarea
+
+                                    rows={5}
+
+                                    value={announcementContent}
+
+                                    onChange={(e) =>
+                                        setAnnouncementContent(e.target.value)
+                                    }
+
+                                    placeholder="Write the announcement..."
+
+                                    className="
+        mt-4
+
+        w-full
+
+        rounded-xl
+
+        bg-slate-900/60
+
+        border
+        border-slate-700
+
+        p-4
+
+        text-white
+
+        resize-none
+
+        outline-none
+
+        focus:border-blue-500
+    "
+                                />
+
+                                <div className="flex justify-end gap-3 mt-5">
+
+                                    {editingAnnouncement && (
+
+                                        <button
+
+                                            onClick={() => {
+
+                                                setEditingAnnouncement(null);
+
+                                                setAnnouncementTitle("");
+
+                                                setAnnouncementContent("");
+
+                                            }}
+
+                                            className="
+                            px-5
+                            py-2
+
+                            rounded-xl
+
+                            bg-slate-700
+
+                            text-white
+                            "
+                                        >
+
+                                            Cancel
+
+                                        </button>
+
+                                    )}
+
+                                    <button
+
+                                        disabled={announcementLoading}
+
+                                        onClick={
+                                            editingAnnouncement
+                                                ? handleUpdateAnnouncement
+                                                : handleCreateAnnouncement
+                                        }
+
+                                        className="
+                        px-6
+                        py-2
+
+                        rounded-xl
+
+                        bg-blue-600
+
+                        hover:bg-blue-500
+
+                        disabled:opacity-50
+
+                        text-white
+                        "
+                                    >
+
+                                        {announcementLoading
+
+                                            ? "Saving..."
+
+                                            : editingAnnouncement
+
+                                                ? "Update"
+
+                                                : "Post"}
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        )}
+
+                        {announcements.length === 0 ? (
+
+                            <div
+                                className="
+                rounded-2xl
+
+                border
+                border-dashed
+                border-slate-700
+
+                p-12
+
+                text-center
+
+                text-slate-500
+                "
+                            >
+
+                                <Megaphone
+                                    size={42}
+                                    className="mx-auto mb-4 opacity-60"
+                                />
+
+                                <p>
+
+                                    No announcements yet.
+
+                                </p>
+
+                            </div>
+
+                        ) : (
+
+                            <div className="space-y-5">
+
+                                {[...announcements].sort((a, b) => {
+
+                                    if (a.isPinned === b.isPinned) {
+
+                                        return (
+                                            new Date(b.createdAt) -
+                                            new Date(a.createdAt)
+                                        );
+
+                                    }
+
+                                    return b.isPinned - a.isPinned;
+
+                                }).map(
+                                    announcement => (
+
+                                        <div
+
+                                            key={announcement._id}
+
+                                            className={`
+rounded-2xl
+
+p-6
+
+transition-all
+
+${announcement.isPinned
+
+                                                    ?
+
+                                                    "bg-gradient-to-r from-yellow-500/10 to-slate-800 border border-yellow-500/30"
+
+                                                    :
+
+                                                    "bg-slate-800/40 border border-blue-500/10"
+
+                                                }
+`}
+                                        >
+
+                                            <div className="flex justify-between">
+
+                                                <div className="flex gap-4">
+
+                                                    <img
+
+                                                        src={
+                                                            announcement.createdBy.avatar
+                                                        }
+
+                                                        alt={
+                                                            announcement.createdBy.username
+                                                        }
+
+                                                        className="
+                                        w-12
+                                        h-12
+
+                                        rounded-full
+                                        object-cover
+                                        "
+                                                    />
+
+                                                    <div>
+
+                                                        <h3 className="text-white font-semibold">
+
+                                                            {
+                                                                announcement.createdBy.fullName
+                                                            }
+
+                                                        </h3>
+
+                                                        <p className="text-xs text-slate-500">
+
+                                                            @
+                                                            {
+                                                                announcement.createdBy.username
+                                                            }
+
+                                                        </p>
+
+                                                        <p className="text-xs text-slate-600 mt-1">
+
+                                                            {new Date(
+                                                                announcement.createdAt
+                                                            ).toLocaleDateString()}
+
+                                                            •
+
+                                                            {new Date(
+                                                                announcement.createdAt
+                                                            ).toLocaleTimeString([], {
+                                                                hour: "2-digit",
+                                                                minute: "2-digit"
+                                                            })}
+
+                                                        </p>
+
+                                                    </div>
+
+                                                </div>
+
+                                                {team.isOwner && (
+
+                                                    <div className="flex gap-2">
+
+                                                        <button
+
+                                                            onClick={() =>
+                                                                handleTogglePin(
+                                                                    announcement._id
+                                                                )
+                                                            }
+
+                                                            className={`
+            px-3
+            py-1
+
+            rounded-lg
+
+            transition
+
+            ${announcement.isPinned
+
+                                                                    ? "bg-yellow-500 text-black"
+
+                                                                    : "bg-slate-700 text-yellow-400 hover:bg-slate-600"
+                                                                }
+        `}
+                                                        >
+
+                                                            {announcement.isPinned
+                                                                ? "📌 Unpin"
+                                                                : "📌 Pin"}
+
+                                                        </button>
+
+                                                        <button
+
+                                                            onClick={() => {
+
+                                                                setEditingAnnouncement(
+                                                                    announcement
+                                                                );
+
+                                                                setAnnouncementTitle(
+                                                                    announcement.title
+                                                                );
+
+                                                                setAnnouncementContent(
+                                                                    announcement.content
+                                                                );
+
+                                                            }}
+
+                                                            className="
+            px-3
+            py-1
+
+            rounded-lg
+
+            bg-yellow-500/10
+
+            text-yellow-400
+        "
+                                                        >
+
+                                                            Edit
+
+                                                        </button>
+
+                                                        <button
+
+                                                            onClick={() =>
+                                                                handleDeleteAnnouncement(
+                                                                    announcement._id
+                                                                )
+                                                            }
+
+                                                            className="
+            px-3
+            py-1
+
+            rounded-lg
+
+            bg-red-500/10
+
+            text-red-400
+        "
+                                                        >
+
+                                                            Delete
+
+                                                        </button>
+
+                                                    </div>
+
+                                                )}
+
+                                            </div>
+
+                                            <div className="mt-5 flex items-start justify-between">
+
+                                                <div>
+
+                                                    <h2
+                                                        className="
+                text-xl
+
+                font-bold
+
+                text-white
+
+                flex
+
+                items-center
+
+                gap-2
+            "
+                                                    >
+
+                                                        <div className="flex items-center gap-3">
+
+                                                            {announcement.isPinned && (
+
+                                                                <div
+                                                                    className="
+                rounded-full
+
+                bg-yellow-500
+
+                px-2
+                py-1
+
+                text-xs
+
+                font-bold
+
+                text-black
+            "
+                                                                >
+                                                                    PINNED
+                                                                </div>
+
+                                                            )}
+
+                                                            <h2 className="text-2xl font-bold text-white">
+
+                                                                {announcement.title}
+
+                                                            </h2>
+
+                                                        </div>
+
+                                                    </h2>
+
+                                                    <p
+                                                        className="
+                mt-4
+
+                text-slate-300
+
+                leading-8
+
+                whitespace-pre-wrap
+            "
+                                                    >
+
+                                                        {announcement.content}
+
+                                                    </p>
+
+                                                </div>
+
+                                                {announcement.isPinned && (
+
+                                                    <span
+                                                        className="
+                px-3
+                py-1
+
+                rounded-full
+
+                bg-yellow-500/10
+
+                border
+                border-yellow-500/20
+
+                text-yellow-400
+
+                text-xs
+            "
+                                                    >
+
+                                                        📌 Pinned
+
+                                                    </span>
+
+                                                )}
+
+                                            </div>
+
+                                        </div>
+
+                                    )
+                                )}
+
+                            </div>
+
+                        )}
 
                     </div>
+
+                )}
+
+                {/* Resources */}
+
+                {activeTab === "resources" && (
+
+                    <ResourcesTab
+
+                        teamId={team._id}
+
+                        isOwner={team.isOwner}
+
+                    />
 
                 )}
 

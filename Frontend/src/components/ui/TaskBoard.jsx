@@ -15,6 +15,9 @@ import { Plus, Search } from "lucide-react";
 
 import TaskColumn from "./TaskColumn";
 import { moveTask } from "../../services/taskService";
+import { useMemo, useState } from "react";
+
+
 
 function TaskBoard({
 
@@ -27,6 +30,157 @@ function TaskBoard({
     onTaskClick
 
 }) {
+
+    const [search, setSearch] = useState("");
+
+    const [statusFilter, setStatusFilter] = useState("ALL");
+
+    const [priorityFilter, setPriorityFilter] = useState("ALL");
+
+    const [assigneeFilter, setAssigneeFilter] = useState("ALL");
+
+    const [sortBy, setSortBy] = useState("latest");
+    const assignees = useMemo(() => {
+
+        const members = [];
+
+        const seen = new Set();
+
+        [
+            ...tasks.todo,
+            ...tasks.inProgress,
+            ...tasks.done
+        ].forEach(task => {
+
+            if (
+                task.assignedTo &&
+                !seen.has(task.assignedTo._id)
+            ) {
+
+                seen.add(task.assignedTo._id);
+
+                members.push(task.assignedTo);
+
+            }
+
+        });
+
+        return members;
+
+    }, [tasks]);
+
+    const filteredTasks = useMemo(() => {
+
+
+
+        const filterAndSort = (taskList) => {
+
+            let filtered = [...taskList];
+
+            // Search
+            if (search.trim()) {
+
+                const query = search.toLowerCase();
+
+                filtered = filtered.filter(task =>
+
+                    task.title.toLowerCase().includes(query) ||
+
+                    task.description?.toLowerCase().includes(query)
+
+                );
+
+            }
+
+            // Priority Filter
+            if (priorityFilter !== "ALL") {
+
+                filtered = filtered.filter(
+
+                    task => task.priority === priorityFilter
+
+                );
+
+            }
+            // Assignee Filter
+
+            if (assigneeFilter !== "ALL") {
+
+                filtered = filtered.filter(
+
+                    task =>
+
+                        task.assignedTo?._id === assigneeFilter
+
+                );
+
+            }
+            // Sorting
+            filtered.sort((a, b) => {
+
+                switch (sortBy) {
+
+                    case "oldest":
+
+                        return new Date(a.createdAt) - new Date(b.createdAt);
+
+                    case "priority": {
+
+                        const priorityOrder = {
+
+                            LOW: 1,
+
+                            MEDIUM: 2,
+
+                            HIGH: 3,
+
+                            URGENT: 4
+
+                        };
+
+                        return priorityOrder[b.priority] - priorityOrder[a.priority];
+                    }
+
+                    case "dueDate":
+
+                        return new Date(a.dueDate) - new Date(b.dueDate);
+
+                    default:
+
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+
+                }
+
+            });
+
+            return filtered;
+
+        };
+
+
+        return {
+
+            todo: filterAndSort(tasks.todo),
+
+            inProgress: filterAndSort(tasks.inProgress),
+
+            done: filterAndSort(tasks.done)
+
+        };
+
+    }, [
+
+        tasks,
+
+        search,
+
+        priorityFilter,
+
+        assigneeFilter,
+
+        sortBy
+
+    ]);
 
     const sensors = useSensors(
 
@@ -42,17 +196,17 @@ function TaskBoard({
 
     );
 
-    const handleDragEnd = async(event)=>{
+    const handleDragEnd = async (event) => {
 
-        const {active,over}=event;
+        const { active, over } = event;
 
-        if(!over) return;
+        if (!over) return;
 
-        const taskId=active.id;
+        const taskId = active.id;
 
-        const newStatus=over.id;
+        const newStatus = over.id;
 
-        const task=[
+        const task = [
 
             ...tasks.todo,
 
@@ -60,23 +214,23 @@ function TaskBoard({
 
             ...tasks.done
 
-        ].find(t=>t._id===taskId);
+        ].find(t => t._id === taskId);
 
-        if(!task) return;
+        if (!task) return;
 
-        const statusMap={
+        const statusMap = {
 
-            TODO:"TODO",
+            TODO: "TODO",
 
-            IN_PROGRESS:"IN_PROGRESS",
+            IN_PROGRESS: "IN_PROGRESS",
 
-            DONE:"DONE"
+            DONE: "DONE"
 
         };
 
-        if(task.status===statusMap[newStatus]) return;
+        if (task.status === statusMap[newStatus]) return;
 
-        try{
+        try {
 
             await moveTask(
 
@@ -90,7 +244,7 @@ function TaskBoard({
 
         }
 
-        catch(err){
+        catch (err) {
 
             console.log(err);
 
@@ -98,7 +252,7 @@ function TaskBoard({
 
     }
 
-    return(
+    return (
 
         <div className="space-y-8">
 
@@ -149,7 +303,7 @@ function TaskBoard({
 
                 >
 
-                    <Plus size={18}/>
+                    <Plus size={18} />
 
                     New Task
 
@@ -193,23 +347,100 @@ function TaskBoard({
 
                     <input
 
+                        value={search}
+
+                        onChange={(e) =>
+
+                            setSearch(e.target.value)
+
+                        }
+
                         placeholder="Search tasks..."
 
                         className="
-                        flex-1
+        flex-1
 
-                        bg-transparent
+        bg-transparent
 
-                        outline-none
+        outline-none
 
-                        text-white
+        text-white
 
-                        placeholder:text-slate-500
-                        "
+        placeholder:text-slate-500
+    "
 
                     />
 
+
                 </div>
+
+                <select
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                    className="
+        rounded-xl
+        bg-slate-900
+        border
+        border-white/5
+        px-4
+        py-3
+        text-white
+    "
+                >
+                    <option value="ALL">All Priorities</option>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+
+                </select>
+
+                <select
+                    value={assigneeFilter}
+                    onChange={(e) => setAssigneeFilter(e.target.value)}
+                    className="
+        rounded-xl
+        bg-slate-900
+        border
+        border-white/5
+        px-4
+        py-3
+        text-white
+    "
+                >
+                    <option value="ALL">
+                        All Members
+                    </option>
+
+                    {assignees.map(member => (
+
+                        <option
+                            key={member._id}
+                            value={member._id}
+                        >
+                            {member.fullName}
+                        </option>
+
+                    ))}
+                </select>
+
+                <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="
+        rounded-xl
+        bg-slate-900
+        border
+        border-white/5
+        px-4
+        py-3
+        text-white
+    "
+                >
+                    <option value="latest">Latest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="priority">Priority</option>
+                    <option value="dueDate">Due Date</option>
+                </select>
 
             </div>
 
@@ -227,7 +458,7 @@ function TaskBoard({
 
                     <SortableContext
 
-                        items={tasks.todo.map(task=>task._id)}
+                        items={filteredTasks.todo.map(task => task._id)}
 
                         strategy={verticalListSortingStrategy}
 
@@ -241,7 +472,7 @@ function TaskBoard({
 
                             color="blue"
 
-                            tasks={tasks.todo}
+                            tasks={filteredTasks.todo}
 
                             onTaskClick={onTaskClick}
 
@@ -251,7 +482,7 @@ function TaskBoard({
 
                     <SortableContext
 
-                        items={tasks.inProgress.map(task=>task._id)}
+                        items={filteredTasks.inProgress.map(task => task._id)}
 
                         strategy={verticalListSortingStrategy}
 
@@ -265,7 +496,7 @@ function TaskBoard({
 
                             color="yellow"
 
-                            tasks={tasks.inProgress}
+                            tasks={filteredTasks.inProgress}
 
                             onTaskClick={onTaskClick}
 
@@ -275,7 +506,7 @@ function TaskBoard({
 
                     <SortableContext
 
-                        items={tasks.done.map(task=>task._id)}
+                        items={filteredTasks.done.map(task => task._id)}
 
                         strategy={verticalListSortingStrategy}
 
@@ -289,7 +520,7 @@ function TaskBoard({
 
                             color="green"
 
-                            tasks={tasks.done}
+                            tasks={filteredTasks.done}
 
                             onTaskClick={onTaskClick}
 
