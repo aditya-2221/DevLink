@@ -124,6 +124,12 @@ const userSchema = new Schema(
             default: "",
         },
 
+        messagePrivacy: {
+            type: String,
+            enum: ["everyone", "connections", "requests"],
+            default: "requests",
+        },
+
 
         password: {
             type: String,
@@ -132,6 +138,15 @@ const userSchema = new Schema(
 
         refreshToken: {
             type: String,
+        },
+        passwordResetToken: {
+            type: String,
+            default: null,
+        },
+
+        passwordResetExpires: {
+            type: Date,
+            default: null,
         },
     },
     {
@@ -177,5 +192,18 @@ userSchema.methods.generateRefreshToken = function () {
         }
     )
 }
+userSchema.index({
+    skills: 1
+});
+
+userSchema.index({
+    location: 1
+});
+
+userSchema.index({
+    bio: "text",
+    fullName: "text",
+    username: "text"
+});
 
 export const User = mongoose.model("User", userSchema)

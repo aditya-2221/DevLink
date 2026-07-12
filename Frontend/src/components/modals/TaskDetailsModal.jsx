@@ -789,24 +789,6 @@ function TaskDetailsModal({
 
                 };
 
-                return {
-
-                    icon: (
-                        <Paperclip
-                            size={16}
-                            className="text-cyan-400"
-                        />
-                    ),
-
-                    title: "Attachment Uploaded",
-
-                    subtitle: (
-                        <span className="text-cyan-300 font-medium">
-                            {activity.metadata.fileName}
-                        </span>
-                    )
-
-                };
 
 
             case "ATTACHMENT_REMOVED":

@@ -12,6 +12,58 @@ import mongoose from "mongoose"
 import { Team } from "../models/team.model.js"
 import { Task } from "../models/task.model.js"
 import { createNotification } from "./notification.controller.js"
+import { Conversation } from "../models/conversation.model.js";
+import { Message } from "../models/message.model.js";
+import { TeamInvitation } from "../models/teamInvitation.model.js";
+import { Notification } from "../models/notification.model.js";
+
+const addMemberToTeam = async (team, userId, senderId) => {
+
+    const isMember = team.members.some(
+        member => member.user.toString() === userId.toString()
+    );
+
+    if (isMember) {
+        throw new ApiError(400, "User is already a team member");
+    }
+
+    team.members.push({
+        user: userId,
+        role: "Member"
+    });
+
+    await team.save();
+
+    await team.populate(
+        "members.user",
+        "fullName username avatar"
+    );
+
+    await Conversation.findOneAndUpdate(
+        {
+            team: team._id,
+            type: "group"
+        },
+        {
+            $addToSet: {
+                participants: {
+                    user: userId
+                }
+            }
+        }
+    );
+
+    await createNotification({
+        recipient: userId,
+        sender: senderId,
+        type: "TEAM_JOINED",
+        message: `You have joined ${team.name}`,
+        referenceId: team._id
+    });
+
+    return team;
+
+};
 
 const createTeam = asyncHandler(async (req, res) => {
     const { name, description, projectId } = req.body
@@ -41,7 +93,7 @@ const createTeam = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Team already exists")
     }
 
-    const team = await Team.create({
+    let team = await Team.create({
         name,
         description,
         project: projectId,
@@ -52,8 +104,24 @@ const createTeam = asyncHandler(async (req, res) => {
                 role: "Lead"
             }
         ]
-    }).populate("owner", "fullName username avatar")
+    });
 
+    team = await team.populate(
+        "owner",
+        "fullName username avatar"
+    );
+    await Conversation.create({
+        type: "group",
+        name: team.name,
+        team: team._id,
+        createdBy: req.user._id,
+        participants: [
+            {
+                user: req.user._id
+            }
+        ],
+        admins: [req.user._id]
+    });
     return res.status(201).json(new ApiResponse(201, team, "Team created successfully"))
 
 
@@ -280,7 +348,24 @@ const updateTeam = asyncHandler(async (req, res) => {
     }
 
     if (name) {
-        team.name = name.trim()
+
+        team.name = name.trim();
+
+        await Conversation.findOneAndUpdate(
+            {
+                team: team._id,
+                type: "group"
+            },
+            {
+                $set: {
+                    name: team.name
+                }
+            },
+            {
+                new: true
+            }
+        );
+
     }
     if (description !== undefined) {
         team.description = description
@@ -293,58 +378,51 @@ const updateTeam = asyncHandler(async (req, res) => {
 })
 
 const addMember = asyncHandler(async (req, res) => {
-    const { teamId } = req.params
-    const { userId } = req.body
+
+    const { teamId } = req.params;
+    const { userId } = req.body;
+
     if (!mongoose.Types.ObjectId.isValid(teamId)) {
-        throw new ApiError(400, "Invalid team ID")
+        throw new ApiError(400, "Invalid team ID");
     }
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-        throw new ApiError(400, "Invalid user ID")
+        throw new ApiError(400, "Invalid user ID");
     }
-    let team = await Team.findById(teamId)
+
+    const team = await Team.findById(teamId);
+
     if (!team) {
-        throw new ApiError(404, "Team not found")
+        throw new ApiError(404, "Team not found");
     }
 
     if (team.owner.toString() !== req.user._id.toString()) {
-        throw new ApiError(403, "Forbidden request to add members")
+        throw new ApiError(403, "Forbidden request to add members");
     }
-    const user = await User.findById(userId)
+
+    const user = await User.findById(userId);
+
     if (!user) {
-        throw new ApiError(404, "User not found")
+        throw new ApiError(404, "User not found");
     }
+
     if (team.owner.toString() === userId) {
-        throw new ApiError(400, "User is already the owner")
+        throw new ApiError(400, "User is already the owner");
     }
 
-    const isMember = team.members.some(
-        member => member.user.toString() === userId
-    )
+    await addMemberToTeam(
+        team,
+        userId,
+        req.user._id
+    );
 
-    if (isMember) {
-        throw new ApiError(400, "User is already a team member")
-    }
-    team.members.push({
-        user: userId,
-        role: "Member"
-    })
-
-    await team.save()
-    await team.populate(
-        "members.user",
-        "fullName username avatar"
-    )
-
-    await createNotification({
-        recipient: userId,
-        sender: req.user._id,
-        type: "TEAM_JOINED",
-        message: `You have been added to ${team.name}`,
-        referenceId: team._id
-    })
-
-    return res.status(200).json(new ApiResponse(200, team, "Member added successfully"))
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            team,
+            "Member added successfully"
+        )
+    );
 
 })
 
@@ -388,6 +466,31 @@ const removeMember = asyncHandler(async (req, res) => {
         member => member.user.toString() !== userId
     )
     await team.save()
+    await Conversation.findOneAndUpdate(
+
+        {
+
+            team: team._id,
+
+            type: "group"
+
+        },
+
+        {
+
+            $pull: {
+
+                participants: {
+
+                    user: userId
+
+                }
+
+            }
+
+        }
+
+    );
 
     await createNotification({
         recipient: userId,
@@ -414,6 +517,379 @@ const removeMember = asyncHandler(async (req, res) => {
             "Member removed successfully"
         )
     )
+
+})
+
+const inviteMember = asyncHandler(async (req, res) => {
+
+    const { teamId } = req.params;
+
+    const { receiverId, message } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+        throw new ApiError(400, "Invalid team id");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+        throw new ApiError(400, "Invalid user id");
+    }
+
+    const team = await Team.findById(teamId);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    if (team.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Forbidden request");
+    }
+
+    if (receiverId === req.user._id.toString()) {
+        throw new ApiError(400, "You cannot invite yourself");
+    }
+
+    const receiver = await User.findById(receiverId);
+
+    if (!receiver) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const isMember = team.members.some(
+        member => member.user.toString() === receiverId
+    );
+
+    if (isMember) {
+        throw new ApiError(400, "User is already a member");
+    }
+
+    const existingInvitation = await TeamInvitation.findOne({
+        team: team._id,
+        receiver: receiverId,
+        status: "pending"
+    });
+
+    if (existingInvitation) {
+        throw new ApiError(400, "Invitation already sent");
+    }
+
+    const invitation = await TeamInvitation.create({
+
+        team: team._id,
+
+        project: team.project,
+
+        sender: req.user._id,
+
+        receiver: receiverId,
+
+        message: message || ""
+
+    });
+
+    await createNotification({
+
+        recipient: receiverId,
+
+        sender: req.user._id,
+
+        type: "TEAM_INVITE",
+
+        message: `${team.name} invited you to join the team`,
+
+        referenceId: invitation._id
+
+    });
+
+    return res.status(201).json(
+
+        new ApiResponse(
+
+            201,
+
+            invitation,
+
+            "Invitation sent successfully"
+
+        )
+
+    );
+
+})
+
+const getMyInvitations = asyncHandler(async (req, res) => {
+
+    const invitations = await TeamInvitation.find({
+
+        receiver: req.user._id,
+
+        status: "pending"
+
+    })
+
+        .populate("sender", "fullName username avatar")
+
+        .populate("team", "name")
+
+        .populate("project", "title category")
+
+        .sort({ createdAt: -1 });
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            invitations,
+
+            "Invitations fetched successfully"
+
+        )
+
+    );
+
+})
+
+const getPendingInvitations = asyncHandler(async (req, res) => {
+
+    const { teamId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+        throw new ApiError(400, "Invalid team id");
+    }
+
+    const team = await Team.findById(teamId);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    if (team.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Forbidden request");
+    }
+
+    const invitations = await TeamInvitation.find({
+
+        team: teamId,
+
+        status: "pending"
+
+    })
+
+        .populate(
+            "receiver",
+            "fullName username avatar"
+        )
+
+        .sort({
+            createdAt: -1
+        });
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            invitations,
+
+            "Pending invitations fetched successfully"
+
+        )
+
+    );
+
+})
+
+const acceptInvitation = asyncHandler(async (req, res) => {
+
+    const { invitationId } = req.params;
+
+    const invitation = await TeamInvitation.findById(invitationId);
+
+    if (!invitation) {
+        throw new ApiError(404, "Invitation not found");
+    }
+
+    if (invitation.receiver.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Forbidden request");
+    }
+
+    if (invitation.status !== "pending") {
+        throw new ApiError(400, "Invitation already processed");
+    }
+
+    const team = await Team.findById(invitation.team);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    await addMemberToTeam(
+
+        team,
+
+        req.user._id,
+
+        invitation.sender
+
+    );
+
+    invitation.status = "accepted";
+
+    await invitation.save();
+
+    await Notification.deleteMany({
+
+        recipient: req.user._id,
+
+        type: "TEAM_INVITE",
+
+        referenceId: invitation._id
+
+    });
+
+    await createNotification({
+
+        recipient: invitation.sender,
+
+        sender: req.user._id,
+
+        type: "TEAM_INVITE_ACCEPTED",
+
+        message: `${req.user.fullName} accepted your invitation to join ${team.name}`,
+
+        referenceId: team._id
+
+    });
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            {},
+
+            "Invitation accepted"
+
+        )
+
+    );
+
+})
+
+const rejectInvitation = asyncHandler(async (req, res) => {
+
+    const { invitationId } = req.params;
+
+    const invitation = await TeamInvitation.findById(invitationId);
+
+    if (!invitation) {
+        throw new ApiError(404, "Invitation not found");
+    }
+
+    if (invitation.receiver.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Forbidden request");
+    }
+
+    if (invitation.status !== "pending") {
+        throw new ApiError(400, "Invitation already processed");
+    }
+
+    invitation.status = "rejected";
+
+    await invitation.save();
+
+    await Notification.deleteMany({
+
+        recipient: req.user._id,
+
+        type: "TEAM_INVITE",
+
+        referenceId: invitation._id
+
+    });
+
+    const team = await Team.findById(invitation.team);
+
+    await createNotification({
+
+        recipient: invitation.sender,
+
+        sender: req.user._id,
+
+        type: "TEAM_INVITE_REJECTED",
+
+        message: `${req.user.fullName} declined your invitation to join ${team.name}`,
+
+        referenceId: team._id
+
+    });
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            {},
+
+            "Invitation rejected"
+
+        )
+
+    );
+
+})
+
+const cancelInvitation = asyncHandler(async (req, res) => {
+
+    const { invitationId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(invitationId)) {
+        throw new ApiError(400, "Invalid invitation id");
+    }
+
+    const invitation = await TeamInvitation.findById(invitationId);
+
+    if (!invitation) {
+        throw new ApiError(404, "Invitation not found");
+    }
+
+    const team = await Team.findById(invitation.team);
+
+    if (!team) {
+        throw new ApiError(404, "Team not found");
+    }
+
+    if (team.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Forbidden request");
+    }
+
+
+    if (invitation.status !== "pending") {
+        throw new ApiError(400, "Invitation already processed");
+    }
+
+    await invitation.deleteOne();
+    await Notification.deleteMany({
+
+        recipient: invitation.receiver,
+
+        type: "TEAM_INVITE",
+
+        referenceId: invitation._id
+
+    });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {},
+            "Invitation cancelled successfully"
+        )
+    );
 
 })
 
@@ -566,7 +1042,7 @@ const getAnnouncements = asyncHandler(async (req, res) => {
         )
     );
 
-});
+})
 
 const updateAnnouncement = asyncHandler(async (req, res) => {
 
@@ -629,7 +1105,7 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
         )
     );
 
-});
+})
 
 const deleteAnnouncement = asyncHandler(async (req, res) => {
 
@@ -674,7 +1150,7 @@ const deleteAnnouncement = asyncHandler(async (req, res) => {
         )
     );
 
-});
+})
 const togglePinAnnouncement = asyncHandler(async (req, res) => {
 
     const { teamId, announcementId } = req.params;
@@ -722,7 +1198,7 @@ const togglePinAnnouncement = asyncHandler(async (req, res) => {
         )
     );
 
-});
+})
 
 const deleteTeam = asyncHandler(async (req, res) => {
     const { teamId } = req.params
@@ -754,11 +1230,40 @@ const deleteTeam = asyncHandler(async (req, res) => {
     await Task.deleteMany({
         team: teamId
     })
+    await TeamInvitation.deleteMany({
+        team: teamId
+    });
+
+    await Notification.deleteMany({
+        referenceId: teamId
+    });
 
     await team.deleteOne()
+
+    const conversation = await Conversation.findOne({
+
+        team: team._id,
+
+        type: "group"
+
+    });
+
+    if (conversation) {
+
+        await Message.deleteMany({
+
+            conversation: conversation._id
+
+        });
+
+        await conversation.deleteOne();
+
+    }
     return res.status(200).json(new ApiResponse(200, {}, "Team deleted successfully"))
 })
 
-export { createTeam, getMyTeams, getTeamById, updateTeam, addMember, removeMember,
-     createAnnouncement, getAnnouncements, updateAnnouncement, deleteAnnouncement,togglePinAnnouncement ,deleteTeam 
+export {
+    createTeam, getMyTeams, getTeamById, updateTeam, addMember, removeMember,
+    createAnnouncement, getAnnouncements, updateAnnouncement, deleteAnnouncement, togglePinAnnouncement, deleteTeam,
+    inviteMember, getMyInvitations, acceptInvitation, rejectInvitation, getPendingInvitations, cancelInvitation
 }

@@ -71,30 +71,30 @@ function RecruitmentDetails() {
     };
 
     const checkApplicationStatus = async () => {
+
         try {
 
-            const response =
-                await getMyApplications();
+            const response = await getMyApplications();
 
             const applications =
-                response.data.data;
+                response.data.data.myApplications || [];
 
             const alreadyApplied =
                 applications.some(
-                    (application) =>
-                        application
-                            ?.recruitment
-                            ?._id ===
-                        recruitmentId
+                    application =>
+                        application?.recruitment?._id === recruitmentId
                 );
 
-            setHasApplied(
-                alreadyApplied
-            );
+            setHasApplied(alreadyApplied);
 
-        } catch (error) {
-            console.log(error);
         }
+
+        catch (error) {
+
+            console.log(error);
+
+        }
+
     };
 
     const fetchRecruitment = async () => {

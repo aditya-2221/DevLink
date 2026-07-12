@@ -3,7 +3,10 @@ import { useDispatch } from "react-redux"
 import { useNavigate } from "react-router-dom"
 import { Link } from "react-router-dom"
 import { loginUser } from "../../services/authService"
-import { setUser } from "../../features/auth/authSlice"
+import {
+    setUser,
+    setAuthLoading
+} from "../../features/auth/authSlice";
 
 const LoginForm = () => {
     const [showPassword, setShowPassword] = useState(false)
@@ -23,11 +26,15 @@ const LoginForm = () => {
         }
 
         try {
-            setLoading(true)
+            setLoading(true);
+
+            dispatch(
+                setAuthLoading(true)
+            );
 
             const response = await loginUser({
-                email: loginField.includes("@")? loginField.toLowerCase(): undefined,
-                username: !loginField.includes("@")? loginField.toLowerCase() : undefined,
+                email: loginField.includes("@") ? loginField.toLowerCase() : undefined,
+                username: !loginField.includes("@") ? loginField.toLowerCase() : undefined,
                 password,
             })
 
@@ -46,7 +53,11 @@ const LoginForm = () => {
             )
 
         } finally {
-            setLoading(false)
+            setLoading(false);
+
+            dispatch(
+                setAuthLoading(false)
+            );
         }
     };
 
@@ -129,12 +140,25 @@ const LoginForm = () => {
                             Password
                         </label>
 
-                        <a
-                            href="#forgot"
-                            className="text-sm text-blue-400 hover:underline"
+                        <Link
+
+                            to="/forgot-password"
+
+                            className="
+    text-sm
+
+    text-cyan-400
+
+    hover:text-cyan-300
+
+    transition
+    "
+
                         >
-                            Forgot password?
-                        </a>
+
+                            Forgot Password?
+
+                        </Link>
                     </div>
 
                     <div className="relative">
@@ -165,7 +189,7 @@ const LoginForm = () => {
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute inset-y-0 right-4 flex items-center text-gray-500 hover:text-gray-300"
+                            className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-300"
                         >
                             {showPassword ? (
                                 <svg
@@ -179,6 +203,12 @@ const LoginForm = () => {
                                         strokeLinejoin="round"
                                         strokeWidth="2"
                                         d="M3 3l18 18"
+                                    />
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                                     />
                                 </svg>
                             ) : (
@@ -206,21 +236,7 @@ const LoginForm = () => {
                     </div>
                 </div>
 
-                {/* Remember Me */}
-                <div className="flex items-center">
-                    <input
-                        id="remember"
-                        type="checkbox"
-                        className="w-4 h-4 accent-blue-500 cursor-pointer"
-                    />
 
-                    <label
-                        htmlFor="remember"
-                        className="ml-3 text-sm text-gray-400 cursor-pointer"
-                    >
-                        Remember me
-                    </label>
-                </div>
 
                 {/* Login Button */}
                 <button

@@ -70,3 +70,20 @@ export const getProjectsByUsername = (
     api.get(
         `/projects/user/${username}`
     );
+
+export const deleteProject = (projectId) =>
+    api.delete(`/projects/${projectId}`);
+
+export const updateProject = (
+    projectId,
+    formData
+) =>
+    api.patch(
+        `/projects/${projectId}`,
+        formData,
+        {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        }
+    );

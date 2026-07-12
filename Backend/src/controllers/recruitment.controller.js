@@ -11,6 +11,9 @@ import { Application } from "../models/application.model.js"
 import mongoose from "mongoose"
 import { Team } from "../models/team.model.js"
 import { createNotification } from "./notification.controller.js"
+import { Conversation } from "../models/conversation.model.js"
+import conversationService from "../services/conversation.service.js"
+
 
 const createRecruitment = asyncHandler(async (req, res) => {
     const {
@@ -750,7 +753,7 @@ const applyToRecruitment = asyncHandler(async (req, res) => {
         sender: req.user._id,
         type: "APPLICATION_RECEIVED",
         message: `${req.user.fullName} applied to your recruitment`,
-        referenceId: application._id
+        referenceId: recruitment._id
     })
 
     return res.status(201).json(
@@ -835,11 +838,11 @@ const getMyApplications = asyncHandler(async (req, res) => {
     const pageNumber = Number(page);
     const limitNumber = Number(limit);
 
-    const skip =(pageNumber - 1) *limitNumber;
+    const skip = (pageNumber - 1) * limitNumber;
 
-    const totalApplications =await Application.countDocuments({
-            applicant: req.user._id
-        });
+    const totalApplications = await Application.countDocuments({
+        applicant: req.user._id
+    });
 
     const applications = await Application.aggregate([
         {
@@ -974,11 +977,10 @@ const acceptApplication = asyncHandler(async (req, res) => {
             )
         }
 
-        const acceptedApplications =
-            await Application.countDocuments({
-                recruitment: recruitment._id,
-                status: "ACCEPTED"
-            }).session(session)
+        const acceptedApplications = await Application.countDocuments({
+            recruitment: recruitment._id,
+            status: "ACCEPTED"
+        }).session(session)
 
         if (
             acceptedApplications >=
@@ -1022,6 +1024,7 @@ const acceptApplication = asyncHandler(async (req, res) => {
             )
 
             team = team[0]
+
         }
 
         const alreadyMember = team.members.some(
@@ -1031,13 +1034,50 @@ const acceptApplication = asyncHandler(async (req, res) => {
         )
 
         if (!alreadyMember) {
+
             team.members.push({
                 user: application.applicant,
                 role: "Member"
-            })
+            });
 
-            await team.save({ session })
+            await team.save({ session });
+
+            let conversation = await Conversation.findOne({
+                team: team._id,
+                type: "group"
+            }).session(session);
+
+            if (!conversation) {
+
+                conversation = await conversationService.createGroupConversation({
+                    name: team.name,
+                    participants: team.members.map(member => member.user),
+                    admins: [recruitment.owner],
+                    team: team._id,
+                    createdBy: recruitment.owner,
+                    session
+                });
+
+            } else {
+
+                await Conversation.findByIdAndUpdate(
+                    conversation._id,
+                    {
+                        $addToSet: {
+                            participants: {
+                                user: application.applicant
+                            }
+                        }
+                    },
+                    {
+                        session,
+                        returnDocument: "after"
+                    }
+                );
+
+            }
         }
+
 
         await session.commitTransaction()
 
@@ -1047,9 +1087,8 @@ const acceptApplication = asyncHandler(async (req, res) => {
             recipient: application.applicant,
             sender: req.user._id,
             type: "APPLICATION_ACCEPTED",
-            message:
-                "Your application has been accepted",
-            referenceId: application._id
+            message: "Your application has been accepted",
+            referenceId: recruitment._id
         })
 
         if (!alreadyMember) {
@@ -1146,7 +1185,7 @@ const rejectApplication = asyncHandler(async (req, res) => {
         sender: req.user._id,
         type: "APPLICATION_REJECTED",
         message: "Your application has been rejected",
-        referenceId: application._id
+        referenceId: recruitment._id
     })
 
     return res.status(200).json(
@@ -1163,7 +1202,7 @@ const rejectApplication = asyncHandler(async (req, res) => {
 export {
     createRecruitment, getAllRecruitments, getRecruitmentById, updateRecruitment,
     deleteRecruitment, applyToRecruitment, getRecruitmentApplications, acceptApplication, rejectApplication, getMyRecruitments,
-    getMyApplications,getRecruitmentSkills
+    getMyApplications, getRecruitmentSkills
 
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+
 import ProfileHeader from "../../components/ui/ProfileHeader";
 import ProfileTabs from "../../components/ui/ProfileTabs";
 
@@ -10,30 +11,68 @@ import ProfileProjects from "../../components/cards/ProfileProjects";
 
 import { getUserProfile } from "../../services/userService";
 
+import useChat from "../../hooks/useChat";
+import chatService from "../../services/chatService";
+
 function UserProfile() {
+
     const { user: currentUser } = useSelector(
         state => state.auth
     );
 
     const { username } = useParams();
 
+    const navigate = useNavigate();
+
+    const {
+        handleMessageAction
+    } = useChat();
+
     const [user, setUser] = useState(null);
 
     const [loading, setLoading] = useState(true);
 
-    const [error, setError] =
-        useState(null);
+    const [error, setError] = useState(null);
 
     const [activeTab, setActiveTab] =
         useState("overview");
 
+    const [chatStatus, setChatStatus] =
+        useState(null);
+
     const [stats, setStats] = useState({
+
         projects: 0,
+
         likes: 0,
-        bookmarks: 0,
+
+        bookmarks: 0
+
     });
 
-    const isOwner = currentUser?.username === user?.username;
+    const isOwner =
+        currentUser?.username === user?.username;
+
+    const fetchChatStatus = async (userId) => {
+
+        if (!userId) return;
+
+        try {
+
+            const status =
+                await chatService.getConversationStatus(
+                    userId
+                );
+
+            setChatStatus(status);
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+
+    };
 
     const fetchProfile = async () => {
 
@@ -41,19 +80,30 @@ function UserProfile() {
 
             setLoading(true);
 
-            const response = await getUserProfile(username);
-            console.log(
-                "PROFILE RESPONSE",
-                response.data.data
-            );
+            const response =
+                await getUserProfile(username);
 
-            setUser(response.data.data);
+            const profile =
+                response.data.data;
+
+            setUser(profile);
+
+            if (!isOwner) {
+
+                await fetchChatStatus(
+                    profile._id
+                );
+
+            }
 
         } catch (error) {
 
             setError(
+
                 error?.response?.data?.message ||
+
                 "Failed to load profile"
+
             );
 
         } finally {
@@ -61,6 +111,7 @@ function UserProfile() {
             setLoading(false);
 
         }
+
     };
 
     useEffect(() => {
@@ -69,52 +120,101 @@ function UserProfile() {
 
     }, [username]);
 
-    if (loading) {
-        return (
-            <div className="text-white">
-                Loading Profile...
-            </div>
+    const onMessageClick = async () => {
+
+        if (!user) return;
+
+        await handleMessageAction(
+
+            user._id,
+
+            navigate
+
         );
+
+        await fetchChatStatus(
+            user._id
+        );
+
+    };
+
+    if (loading) {
+
+        return (
+
+            <div className="text-white">
+
+                Loading Profile...
+
+            </div>
+
+        );
+
     }
 
     if (error) {
+
         return (
+
             <div className="text-red-400">
+
                 {error}
+
             </div>
+
         );
+
     }
 
     if (!user) {
+
         return (
+
             <div className="text-slate-400">
+
                 User not found
+
             </div>
+
         );
+
     }
 
     return (
+
         <div className="space-y-8">
 
             <ProfileHeader
+
                 user={user}
+
                 stats={stats}
-                isOwner={false}
+
+                isOwner={isOwner}
+
+                chatStatus={chatStatus}
+
+                onMessage={onMessageClick}
+
             />
 
             <ProfileTabs
+
                 activeTab={activeTab}
+
                 setActiveTab={setActiveTab}
+
             />
 
             {
+
                 activeTab === "overview" && (
 
                     <div
                         className="
-                        grid
-                        lg:grid-cols-3
-                        gap-6
+                            grid
+                            lg:grid-cols-3
+                            gap-6
                         "
                     >
 
@@ -133,15 +233,13 @@ function UserProfile() {
                         <div className="lg:col-span-2">
 
                             <ProfileProjects
-                                username={
-                                    user.username
-                                }
-                                onStatsLoaded={
-                                    setStats
-                                }
-                                setActiveTab={
-                                    setActiveTab
-                                }
+
+                                username={user.username}
+
+                                onStatsLoaded={setStats}
+
+                                setActiveTab={setActiveTab}
+
                             />
 
                         </div>
@@ -149,26 +247,31 @@ function UserProfile() {
                     </div>
 
                 )
+
             }
 
             {
+
                 activeTab === "projects" && (
 
                     <ProfileProjects
-                        username={
-                            user.username
-                        }
+
+                        username={user.username}
+
                         showAll={true}
-                        onStatsLoaded={
-                            setStats
-                        }
+
+                        onStatsLoaded={setStats}
+
                     />
 
                 )
+
             }
 
         </div>
+
     );
+
 }
 
 export default UserProfile;

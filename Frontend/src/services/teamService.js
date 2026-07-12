@@ -32,6 +32,42 @@ export const removeMember = (
         `/teams/${teamId}/members/${userId}`
     );
 
+export const inviteMember = (
+    teamId,
+    receiverId,
+    message = ""
+) =>
+    api.post(
+        `/teams/${teamId}/invite`,
+        {
+            receiverId,
+            message
+        }
+    );
+
+export const getMyInvitations = () =>
+    api.get("/teams/invitations");
+
+export const acceptInvitation = (invitationId) =>
+    api.patch(
+        `/teams/invitations/${invitationId}/accept`
+    );
+
+export const rejectInvitation = (invitationId) =>
+    api.patch(
+        `/teams/invitations/${invitationId}/reject`
+    );
+
+export const getPendingInvitations = (teamId) =>
+    api.get(
+        `/teams/${teamId}/invitations`
+    );
+
+export const cancelInvitation = (invitationId) =>
+    api.delete(
+        `/teams/invitations/${invitationId}`
+    );
+
 export const createAnnouncement = (
     teamId,
     title,
@@ -44,6 +80,7 @@ export const createAnnouncement = (
             content
         }
     );
+
 export const getAnnouncements = (teamId) =>
     api.get(
         `/teams/${teamId}/announcements`
@@ -57,7 +94,10 @@ export const updateAnnouncement = (
 ) =>
     api.patch(
         `/teams/${teamId}/announcements/${announcementId}`,
-        { content: message }
+        {
+            title,
+            content
+        }
     );
 
 export const deleteAnnouncement = (

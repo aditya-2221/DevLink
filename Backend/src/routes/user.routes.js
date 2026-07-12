@@ -1,26 +1,29 @@
 import { Router } from "express";
 import { upload } from "../middlewares/multer.middleware.js";
-import { changeCurrentPassword, getCurrentUser, loginUser, logoutUser,
-     refreshAccessToken, registerUser, 
-     updateAccountDetails,
-     updateEmail,
-     updateUserAvatar,
-     updateUserCoverImage,
-     userProfile
+import {
+    changeCurrentPassword, getCurrentUser, loginUser, logoutUser,
+    refreshAccessToken, registerUser,
+    updateAccountDetails,
+    updateEmail,
+    updateUserAvatar,
+    updateUserCoverImage,
+    userProfile,
+    resetPassword,
+    forgotPassword
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-const router=Router()
+const router = Router()
 
 router.route("/register").post(
     upload.fields(
         [
             {
-                name:"avatar",
-                maxCount:1
+                name: "avatar",
+                maxCount: 1
             },
             {
-                name:"coverImage",
-                maxCount:1
+                name: "coverImage",
+                maxCount: 1
             }
         ]
     ),
@@ -30,21 +33,25 @@ router.route("/register").post(
 
 router.route("/login").post(loginUser)
 
-router.route("/logout").post(verifyJWT,logoutUser)
+router.route("/forgot-password").post(forgotPassword);
 
-router.route("/current-user").get(verifyJWT,getCurrentUser)
+router.route("/reset-password/:token").post(resetPassword);
 
-router.route("/change-password").post(verifyJWT,changeCurrentPassword)
+router.route("/logout").post(verifyJWT, logoutUser)
+
+router.route("/current-user").get(verifyJWT, getCurrentUser)
+
+router.route("/change-password").post(verifyJWT, changeCurrentPassword)
 
 router.route("/refresh-token").post(refreshAccessToken)
 
-router.route("/update-account").patch(verifyJWT,updateAccountDetails)
+router.route("/update-account").patch(verifyJWT, updateAccountDetails)
 
-router.route("/update-email").patch(verifyJWT,updateEmail)
+router.route("/update-email").patch(verifyJWT, updateEmail)
 
-router.route("/avatar").patch(verifyJWT,upload.single("avatar"),updateUserAvatar)
+router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar)
 
-router.route("/cover-image").patch(verifyJWT,upload.single("coverImage"),updateUserCoverImage)
+router.route("/cover-image").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage)
 
 router.route("/profile/:username").get(userProfile)
 

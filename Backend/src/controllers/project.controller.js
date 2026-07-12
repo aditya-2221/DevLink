@@ -689,10 +689,6 @@ const deleteProject = asyncHandler(async (req, res) => {
         project: project._id
     })
 
-    await Comment.deleteMany({
-        project: project._id
-    })
-
     const recruitments = await Recruitment.find({
         project: project._id
     })
@@ -736,8 +732,6 @@ const deleteProject = asyncHandler(async (req, res) => {
 
         await team.deleteOne()
     }
-
-    await project.deleteOne()
 
     await project.deleteOne()
 

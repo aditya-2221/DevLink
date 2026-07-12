@@ -5,6 +5,8 @@ import CreateTaskModal from "../../components/modals/CreateTaskModal";
 import TaskBoard from "../../components/ui/TaskBoard";
 import TaskDetailsModal from "../../components/modals/TaskDetailsModal";
 import ResourcesTab from "./ResourcesTab";
+import InviteMemberModal from "../../components/modals/InviteMemberModal";
+import TeamOwnerMenu from "../../components/cards/TeamOwnerMenu";
 
 import {
     Users,
@@ -24,7 +26,10 @@ import {
     getAnnouncements,
     updateAnnouncement,
     deleteAnnouncement,
-    togglePinAnnouncement
+    togglePinAnnouncement,
+    getPendingInvitations,
+    cancelInvitation,
+    deleteTeam
 } from "../../services/teamService";
 
 import { getTeamTasks } from "../../services/taskService";
@@ -60,6 +65,8 @@ function TeamDetails() {
     const [editingAnnouncement, setEditingAnnouncement] = useState(null);
     const [announcementLoading, setAnnouncementLoading] = useState(false);
 
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [pendingInvitations, setPendingInvitations] = useState([]);
 
     const fetchTeam = async () => {
 
@@ -101,6 +108,84 @@ function TeamDetails() {
         catch (err) {
 
             console.log(err);
+
+        }
+
+    };
+    const fetchPendingInvitations = async () => {
+
+        if (!team?.isOwner) return;
+
+        try {
+
+            const res =
+                await getPendingInvitations(teamId);
+
+            setPendingInvitations(
+                res.data.data
+            );
+
+        }
+
+        catch (err) {
+
+            console.log(err);
+
+        }
+
+    };
+    const handleCancelInvitation = async (invitationId) => {
+
+        try {
+
+            await cancelInvitation(invitationId);
+
+            fetchPendingInvitations();
+
+        }
+
+        catch (err) {
+
+            console.log(err);
+
+        }
+
+    };
+    const handleEdit = () => {
+
+        navigate(`/teams/${teamId}/edit`);
+
+    };
+
+    const handleDelete = async () => {
+
+        const confirmed = window.confirm(
+
+            "Are you sure you want to delete this team?"
+
+        );
+
+        if (!confirmed) return;
+
+        try {
+
+            await deleteTeam(teamId);
+
+            navigate("/teams");
+
+        }
+
+        catch (err) {
+
+            console.log(err);
+
+            alert(
+
+                err.response?.data?.message ||
+
+                "Unable to delete team."
+
+            );
 
         }
 
@@ -248,6 +333,16 @@ function TeamDetails() {
 
     }, [teamId]);
 
+    useEffect(() => {
+
+        if (team?.isOwner) {
+
+            fetchPendingInvitations();
+
+        }
+
+    }, [team]);
+
 
     if (loading) {
 
@@ -315,8 +410,9 @@ function TeamDetails() {
     h-72
 
     rounded-3xl
+    z-50
 
-    overflow-hidden
+    overflow-visible
 
     bg-gradient-to-r
 
@@ -505,29 +601,15 @@ function TeamDetails() {
 
                     {team.isOwner && (
 
-                        <button
-                            className="
-                px-6
-                py-3
+                        <TeamOwnerMenu
 
-                rounded-xl
+                            onEdit={handleEdit}
 
-                bg-blue-600
+                            onDelete={handleDelete}
 
-                hover:bg-blue-500
-
-                text-white
-
-                transition
-                "
-                        >
-
-                            Edit Team
-
-                        </button>
+                        />
 
                     )}
-
                 </div>
 
             </div>
@@ -572,11 +654,8 @@ function TeamDetails() {
                         id: "announcements",
                         icon: Megaphone
                     },
-                    {
-                        id: "settings",
-                        icon: Settings
-                    },
                     
+
                 ].map((tab) => {
 
                     const Icon = tab.icon;
@@ -1055,86 +1134,235 @@ function TeamDetails() {
 
                 {activeTab === "members" && (
 
-                    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <>
 
-                        {team.members.map(member => (
+                        <div className="flex justify-between items-center mb-8">
 
-                            <div
-                                key={member.user._id}
-                                className="
-                                rounded-2xl
+                            <h2 className="text-2xl font-semibold text-white">
+                                Team Members
+                            </h2>
 
-                                border
-                                border-blue-500/10
+                            {team.isOwner && (
 
-                                bg-slate-800/40
-
-                                p-5
-                                "
-                            >
-
-                                <img
-                                    src={member.user.avatar}
-                                    alt={member.user.username}
-                                    onClick={() =>
-                                        navigate(`/profile/${member.user.username}`)
-                                    }
+                                <button
+                                    onClick={() => setShowInviteModal(true)}
                                     className="
-        w-16
-        h-16
+                    px-5
+                    py-2
+                    rounded-xl
+                    bg-blue-600
+                    hover:bg-blue-500
+                    text-white
+                    "
+                                >
+                                    Invite Member
+                                </button>
+
+                            )}
+
+                        </div>
+
+                        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+
+                            {team.members.map(member => (
+
+                                <div
+                                    key={member.user._id}
+                                    className="
+                    rounded-2xl
+                    border
+                    border-blue-500/10
+                    bg-slate-800/40
+                    p-5
+                    "
+                                >
+
+                                    <img
+                                        src={member.user.avatar}
+                                        alt={member.user.username}
+                                        onClick={() =>
+                                            navigate(`/profile/${member.user.username}`)
+                                        }
+                                        className="
+                        w-16
+                        h-16
+                        rounded-full
+                        object-cover
+                        cursor-pointer
+                        hover:scale-105
+                        transition-all
+                        duration-300
+                        border-2
+                        border-transparent
+                        hover:border-blue-500
+                        "
+                                    />
+
+                                    <h2 className="mt-4 text-white font-semibold">
+                                        {member.user.fullName}
+                                    </h2>
+
+                                    <p className="text-slate-400 text-sm">
+                                        @{member.user.username}
+                                    </p>
+
+                                    <span
+                                        className="
+                        inline-block
+                        mt-4
+                        px-3
+                        py-1
+                        rounded-full
+                        bg-blue-500/10
+                        text-blue-400
+                        text-xs
+                        "
+                                    >
+                                        {member.role}
+                                    </span>
+
+                                </div>
+
+                            ))}
+
+                            {
+                                team.isOwner && pendingInvitations.length > 0 && (
+
+                                    <div className="col-span-full mt-8">
+
+                                        <h2 className="text-xl font-semibold text-white mb-5">
+
+                                            Pending Invitations
+
+                                        </h2>
+
+                                        <div className="space-y-4">
+
+                                            {
+
+                                                pendingInvitations.map(invite => (
+
+                                                    <div
+
+                                                        key={invite._id}
+
+                                                        className="
+                            flex
+                            items-center
+                            justify-between
+
+                            rounded-2xl
+
+                            bg-slate-800/40
+
+                            border
+                            border-yellow-500/20
+
+                            p-5
+                            "
+
+                                                    >
+
+                                                        <div className="flex items-center gap-4">
+
+                                                            <img
+
+                                                                src={invite.receiver.avatar}
+
+                                                                alt={invite.receiver.username}
+
+                                                                className="
+                                    h-12
+                                    w-12
+                                    rounded-full
+                                    object-cover
+                                    "
+
+                                                            />
+
+                                                            <div>
+
+                                                                <p className="text-white">
+
+                                                                    {invite.receiver.fullName}
+
+                                                                </p>
+
+                                                                <p className="text-slate-400 text-sm">
+
+                                                                    @{invite.receiver.username}
+
+                                                                </p>
+
+                                                            </div>
+
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3">
+
+                                                            <span
+                                                                className="
+        px-3
+        py-1
 
         rounded-full
 
-        object-cover
+        bg-yellow-500/10
 
-        cursor-pointer
+        text-yellow-400
 
-        hover:scale-105
+        text-sm
+        "
+                                                            >
+                                                                Pending
+                                                            </span>
 
-        transition-all
-        duration-300
+                                                            <button
 
-        border-2
-        border-transparent
+                                                                onClick={() => {
+                                                                    console.log(invite);
+                                                                    handleCancelInvitation(invite._id);
+                                                                }
+                                                                }
 
-        hover:border-blue-500
-    "
-                                />
+                                                                className="
+        px-3
+        py-1
 
-                                <h2 className="mt-4 text-white font-semibold">
-                                    {member.user.fullName}
-                                </h2>
+        rounded-lg
 
-                                <p className="text-slate-400 text-sm">
-                                    @{member.user.username}
-                                </p>
+        bg-red-500/10
 
-                                <span
-                                    className="
-                                    inline-block
+        text-red-400
 
-                                    mt-4
+        hover:bg-red-500/20
 
-                                    px-3
-                                    py-1
+        transition
+        "
+                                                            >
 
-                                    rounded-full
+                                                                Cancel
 
-                                    bg-blue-500/10
+                                                            </button>
 
-                                    text-blue-400
+                                                        </div>
 
-                                    text-xs
-                                    "
-                                >
-                                    {member.role}
-                                </span>
+                                                    </div>
 
-                            </div>
+                                                ))
 
-                        ))}
+                                            }
 
-                    </div>
+                                        </div>
+
+                                    </div>
+
+                                )
+                            }
+
+                        </div>
+
+                    </>
 
                 )}
 
@@ -1677,46 +1905,7 @@ ${announcement.isPinned
 
                 )}
 
-                {/* Settings */}
-
-                {activeTab === "settings" && (
-
-                    <div>
-
-                        {team.isOwner ? (
-
-                            <button
-                                className="
-                                bg-red-600
-
-                                hover:bg-red-500
-
-                                px-6
-                                py-3
-
-                                rounded-xl
-
-                                text-white
-                                "
-                            >
-
-                                Delete Team
-
-                            </button>
-
-                        ) : (
-
-                            <p className="text-slate-400">
-
-                                Only the Team Lead can modify settings.
-
-                            </p>
-
-                        )}
-
-                    </div>
-
-                )}
+             
 
             </div>
             <CreateTaskModal
@@ -1740,6 +1929,24 @@ ${announcement.isPinned
                     setShowTaskDetails(false);
                     setSelectedTask(null);
                 }}
+            />
+
+            <InviteMemberModal
+
+                open={showInviteModal}
+
+                onClose={() => setShowInviteModal(false)}
+
+                teamId={team._id}
+
+                onInvite={async () => {
+
+                    await fetchTeam();
+
+                    setShowInviteModal(false);
+
+                }}
+
             />
 
         </div>

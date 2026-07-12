@@ -72,9 +72,9 @@ backdrop-blur-xl
         />
 
         <NavItem
-          to="/messages"
+          to="/chats"
           icon={MessageSquare}
-          label="Messages"
+          label="Chats"
         />
 
         <NavItem
@@ -83,11 +83,7 @@ backdrop-blur-xl
           label="Notifications"
         />
 
-        <NavItem
-          to="/settings"
-          icon={Settings}
-          label="Settings"
-        />
+        
       </nav>
       <div className="mt-auto border-t border-blue-500/10 p-4">
         <div

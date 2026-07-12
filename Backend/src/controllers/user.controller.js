@@ -5,7 +5,23 @@ import ApiResponse from "../utils/ApiResponse.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import jwt from "jsonwebtoken"
 import { Project } from "../models/project.model.js";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
 
+
+const transporter = nodemailer.createTransport({
+
+    service: "gmail",
+
+    auth: {
+
+        user: process.env.EMAIL_USER,
+
+        pass: process.env.EMAIL_PASS
+
+    }
+
+});
 
 
 const generateAccessAndRefreshToken = async (userId) => {
@@ -588,8 +604,183 @@ const userProfile = asyncHandler(async (req, res) => {
 
 })
 
+const forgotPassword = asyncHandler(async (req, res) => {
+
+    const { email } = req.body;
+
+    if (!email?.trim()) {
+        throw new ApiError(
+            400,
+            "Email is required"
+        );
+    }
+
+    const user = await User.findOne({
+        email: email.toLowerCase()
+    });
+
+    if (!user) {
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {},
+                "If an account exists, a reset link has been sent."
+            )
+        );
+
+    }
+
+    const resetToken = crypto
+        .randomBytes(32)
+        .toString("hex");
+
+    const hashedToken = crypto
+        .createHash("sha256")
+        .update(resetToken)
+        .digest("hex");
+
+    user.passwordResetToken = hashedToken;
+
+    user.passwordResetExpires =
+        Date.now() + 15 * 60 * 1000;
+
+    await user.save({
+        validateBeforeSave: false
+    });
+
+    const resetUrl =
+        `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+
+    await transporter.sendMail({
+
+        from: process.env.EMAIL_USER,
+
+        to: user.email,
+
+        subject: "DevLink Password Reset",
+
+        html: `
+            <div style="font-family:Arial,sans-serif">
+
+                <h2>Reset your DevLink password</h2>
+
+                <p>
+
+                    Click the button below to reset your password.
+
+                </p>
+
+                <a
+                    href="${resetUrl}"
+                    style="
+                        display:inline-block;
+                        padding:12px 24px;
+                        background:#2563eb;
+                        color:white;
+                        text-decoration:none;
+                        border-radius:8px;
+                    "
+                >
+
+                    Reset Password
+
+                </a>
+
+                <p>
+
+                    This link expires in 15 minutes.
+
+                </p>
+
+            </div>
+        `
+
+    });
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            {},
+
+            "If an account exists, a reset link has been sent."
+
+        )
+
+    );
+
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+
+    const { token } = req.params;
+
+    const { password } = req.body;
+
+    if (!password?.trim()) {
+
+        throw new ApiError(
+            400,
+            "New password is required"
+        );
+
+    }
+
+    const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+    const user = await User.findOne({
+
+        passwordResetToken: hashedToken,
+
+        passwordResetExpires: {
+            $gt: Date.now()
+        }
+
+    });
+
+    if (!user) {
+
+        throw new ApiError(
+            400,
+            "Invalid or expired reset link"
+        );
+
+    }
+
+    user.password = password;
+
+    user.passwordResetToken = null;
+
+    user.passwordResetExpires = null;
+
+    await user.save({
+        validateBeforeSave: false
+    });
+
+    return res.status(200).json(
+
+        new ApiResponse(
+
+            200,
+
+            {},
+
+            "Password reset successfully"
+
+        )
+
+    );
+
+});
+
 
 export {
     registerUser, loginUser, logoutUser, getCurrentUser, refreshAccessToken,
-    changeCurrentPassword, updateAccountDetails, updateEmail, userProfile, updateUserAvatar, updateUserCoverImage
+    changeCurrentPassword, updateAccountDetails, updateEmail, userProfile, updateUserAvatar, updateUserCoverImage, forgotPassword, resetPassword
 }

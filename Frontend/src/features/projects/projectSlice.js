@@ -74,6 +74,10 @@ const projectSlice = createSlice({
                 (project) => project._id !== action.payload
             );
 
+            state.trendingProjects = state.trendingProjects.filter(
+                (project) => project._id !== action.payload
+            );
+
             if (
                 state.currentProject &&
                 state.currentProject._id === action.payload

@@ -32,7 +32,7 @@ function CreateTeam() {
 
         try {
 
-            const response =await getMyProjects();
+            const response = await getMyProjects();
 
             setProjects(
                 response.data.data
@@ -70,8 +70,8 @@ function CreateTeam() {
             navigate("/teams");
 
         } catch (error) {
-
-            console.log(error);
+            console.log(error.response?.data);
+            console.log(error.response?.data?.message);
 
         } finally {
 

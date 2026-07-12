@@ -19,16 +19,27 @@ const notificationSchema = new Schema(
                 "APPLICATION_RECEIVED",
                 "APPLICATION_ACCEPTED",
                 "APPLICATION_REJECTED",
+
                 "PROJECT_LIKED",
                 "PROJECT_COMMENTED",
+
+                "TEAM_INVITE",
+                "TEAM_INVITE_ACCEPTED",
+                "TEAM_INVITE_REJECTED",
                 "TEAM_JOINED",
+                "TEAM_REMOVED",
+                "TEAM_DELETED",
                 "TEAM_ANNOUNCEMENT",
                 "TEAM_RESOURCE",
+
                 "TASK_ASSIGNED",
                 "TASK_ATTACHMENT",
                 "TASK_ATTACHMENT_REMOVED",
-                "TEAM_REMOVED",
-                "TEAM_DELETED",
+
+                "CHAT_REQUEST",
+                "CHAT_REQUEST_ACCEPTED",
+                "CHAT_REQUEST_REJECTED",
+
                 "PROJECT_DELETED"
             ],
             required: true

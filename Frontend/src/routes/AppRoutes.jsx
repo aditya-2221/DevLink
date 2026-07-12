@@ -2,6 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoutes";
 import MainLayout from "../layouts/MainLayout";
 
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
 import Login from "../pages/login/Login";
 import AuthLayout from "../layouts/AuthLayout";
 import Dashboard from "../pages/dashboard/Dashboard";
@@ -10,6 +12,7 @@ import Register from "../pages/register/Register";
 import Projects from "../pages/projects/projects";
 import CreateProject from "../pages/projects/CreateProject";
 import ProjectDetails from "../pages/projects/ProjectDetails";
+import EditProject from "../pages/projects/EditProject";
 
 import Profile from "../pages/profile/Profile";
 import UserProfile from "../pages/profile/UserProfile";
@@ -23,6 +26,16 @@ import EditRecruitment from "../pages/recruitment/EditRecruitment";
 import Teams from "../pages/teams/Teams";
 import CreateTeam from "../pages/teams/CreateTeam";
 import TeamDetails from "../pages/teams/TeamDetails";
+import EditTeam from "../pages/teams/EditTeam";
+
+import Notifications from "../pages/notifications/Notifications";
+
+import ChatLayout from "../layouts/ChatLayout";
+import Chats from "../pages/chat/Chats";
+
+import Security from "../pages/security/Security";
+
+import SearchPage from "../pages/search/SearchPage";
 function AppRoutes() {
 
   return (
@@ -32,6 +45,16 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
       </Route>
+      
+      <Route
+        path="/forgot-password"
+        element={<ForgotPassword />}
+      />
+
+      <Route
+        path="/reset-password/:token"
+        element={<ResetPassword />}
+      />
 
       <Route
         element={
@@ -41,6 +64,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<Dashboard />} />
+        <Route path="/security" element={<Security />} />
 
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/:username" element={<UserProfile />} />
@@ -51,6 +75,11 @@ function AppRoutes() {
         <Route
           path="/projects/create"
           element={<CreateProject />}
+        />
+
+        <Route
+          path="/projects/:projectId/edit"
+          element={<EditProject />}
         />
 
         <Route
@@ -93,6 +122,35 @@ function AppRoutes() {
           path="/teams/create"
           element={<CreateTeam />}
         />
+        <Route
+          path="/teams/:teamId/edit"
+          element={<EditTeam />}
+        />
+        <Route
+          path="/notifications"
+          element={<Notifications />}
+        />
+      </Route>
+
+      <Route element={<ChatLayout />}>
+
+        <Route
+          path="/chats"
+          element={
+            <ProtectedRoute>
+              <Chats />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+
+          path="/search"
+
+          element={<SearchPage />}
+
+        />
+
+
       </Route>
 
 

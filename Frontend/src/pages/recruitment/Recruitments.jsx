@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import RecruitmentCard from "../../components/cards/RecruitmentCard";
@@ -126,7 +126,7 @@ function Recruitments() {
                         )
                     );
 
-                    
+
 
                     dispatch(
                         setPagination({
@@ -157,7 +157,7 @@ function Recruitments() {
 
     useEffect(() => {
         fetchData();
-    }, [activeTab, search, skill, sort, status, currentPage]);
+    }, [activeTab, skill, sort, status, currentPage]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -186,6 +186,50 @@ function Recruitments() {
     useEffect(() => {
         fetchSkills();
     }, []);
+    const data =
+        activeTab === "my"
+            ? myRecruitments
+            : recruitments;
+
+    const filteredRecruitments = useMemo(() => {
+
+        if (activeTab !== "all") {
+            return data;
+        }
+
+        return data.filter(recruitment => {
+
+            const text = search.toLowerCase();
+
+            return (
+
+                recruitment.title
+                    ?.toLowerCase()
+                    .includes(text)
+
+                ||
+
+                recruitment.description
+                    ?.toLowerCase()
+                    .includes(text)
+
+                ||
+
+                recruitment.requiredSkills?.some(skill =>
+                    skill
+                        .toLowerCase()
+                        .includes(text)
+                )
+
+            );
+
+        });
+
+    }, [
+        data,
+        search,
+        activeTab,
+    ]);
 
     const renderContent = () => {
 
@@ -390,11 +434,9 @@ duration-300
         }
 
 
-        const data = activeTab === "my" ? myRecruitments : recruitments;
 
         if (
-            !data ||
-            data.length === 0
+            filteredRecruitments.length === 0
         ) {
             return (
                 <div
@@ -550,7 +592,7 @@ duration-300
             gap-6
             "
                 >
-                    {data.map(
+                    {filteredRecruitments.map(
                         (recruitment) => (
                             <RecruitmentCard
                                 key={recruitment._id}

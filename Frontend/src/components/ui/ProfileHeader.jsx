@@ -15,6 +15,8 @@ import { BADGES } from "../../constants/badges"
 function ProfileHeader({
     onEdit,
     onLinkProfiles,
+    onMessage,
+    chatStatus,
     stats,
     user,
     isOwner = false
@@ -34,6 +36,67 @@ function ProfileHeader({
             }
         )
         : "Recently";
+
+    const getMessageButton = () => {
+
+        if (!chatStatus) {
+
+            return {
+                text: "Message",
+                disabled: false
+            };
+
+        }
+
+        switch (chatStatus.status) {
+
+            case "conversation":
+
+                return {
+
+                    text: "Open Chat",
+
+                    disabled: false
+
+                };
+
+            case "pending":
+
+                if (chatStatus.direction === "sent") {
+
+                    return {
+
+                        text: "Request Sent",
+
+                        disabled: true
+
+                    };
+
+                }
+
+                return {
+
+                    text: "Accept Request",
+
+                    disabled: false
+
+                };
+
+            default:
+
+                return {
+
+                    text: "Message",
+
+                    disabled: false
+
+                };
+
+        }
+
+    };
+
+    const messageButton = getMessageButton();
     return (
         <div
             className="
@@ -268,39 +331,101 @@ z-10
                         >
 
                             {
-                                isOwner && (
 
-                                    <div
-                                        className="
-            flex
-            flex-wrap
-            gap-2
-            mt-4
-           
-            "
-                                    >
+                                isOwner ? (
 
-                                        {!user?.github && (
-                                            <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
-                                                ⚠ GitHub Missing
-                                            </span>
-                                        )}
+                                    <div className="flex gap-6">
 
-                                        {!user?.linkedin && (
-                                            <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
-                                                ⚠ LinkedIn Missing
-                                            </span>
-                                        )}
+                                        <button
+                                            onClick={onLinkProfiles}
+                                            className="
+                    px-5
+                    py-2.5
+                    rounded-xl
+                    bg-blue-600
+                    hover:bg-blue-500
+                    text-white
+                    transition
+                "
+                                        >
 
-                                        {!user?.portfolio && (
-                                            <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-xs">
-                                                ⚠ Portfolio Missing
-                                            </span>
-                                        )}
+                                            {
+
+                                                hasSocials
+
+                                                    ? "Manage Links"
+
+                                                    : "Link Profiles"
+
+                                            }
+
+                                        </button>
+
+                                        <button
+                                            onClick={onEdit}
+                                            className="
+                    px-5
+                    py-2.5
+                    rounded-xl
+                    bg-slate-900/70
+                    hover:bg-slate-800
+                    border
+                    border-blue-500/20
+                    text-white
+                    transition
+                "
+                                        >
+
+                                            Edit Profile
+
+                                        </button>
 
                                     </div>
 
+                                ) : (
+
+                                    <button
+
+                                        onClick={onMessage}
+
+                                        disabled={messageButton.disabled}
+
+                                        className={`
+                px-6
+                py-2.5
+
+                rounded-xl
+
+                font-medium
+
+                transition-all
+                duration-300
+
+                ${messageButton.disabled
+
+                                                ?
+
+                                                "bg-slate-800 text-slate-400 cursor-not-allowed"
+
+                                                :
+
+                                                "bg-gradient-to-r from-blue-600 to-cyan-500 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 text-white"
+
+                                            }
+
+            `}
+                                    >
+
+                                        {
+
+                                            messageButton.text
+
+                                        }
+
+                                    </button>
+
                                 )
+
                             }
                         </div>
 
@@ -508,49 +633,6 @@ z-10
                     {/* Buttons Row */}
                     <div className="flex gap-6">
 
-                        {
-                            isOwner && (
-
-                                <div className="flex gap-6">
-
-                                    <button
-                                        onClick={onLinkProfiles}
-                                        className="
-                px-5
-                py-2.5
-                rounded-xl
-                bg-blue-600
-                hover:bg-blue-500
-                text-white
-                transition
-                "
-                                    >
-                                        {hasSocials
-                                            ? "Manage Links"
-                                            : "Link Profiles"}
-                                    </button>
-
-                                    <button
-                                        onClick={onEdit}
-                                        className="
-                px-5
-                py-2.5
-                rounded-xl
-                bg-slate-900/70
-                hover:bg-slate-800
-                border
-                border-blue-500/20
-                text-white
-                transition
-                "
-                                    >
-                                        Edit Profile
-                                    </button>
-
-                                </div>
-
-                            )
-                        }
 
                     </div>
 

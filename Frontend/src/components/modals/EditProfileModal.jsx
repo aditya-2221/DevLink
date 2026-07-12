@@ -1,69 +1,104 @@
-import {
-    useState
-} from "react";
+import { useState } from "react";
+import { useDispatch } from "react-redux";
+
+import EditProfileForm from "../forms/EditProfileForm";
+import SocialLinksForm from "../forms/SocialLinksForm";
 
 import {
-    useDispatch
-} from "react-redux";
-
-import EditProfileForm
-    from "../forms/EditProfileForm";
-
-import {
-    updateProfile
+    updateProfile,
+    updateAvatar,
+    updateCoverImage,
 } from "../../services/authService";
 
-import {
-    setUser
-} from "../../features/auth/authSlice";
-import SocialLinksForm from "../forms/SocialLinksForm";
+import { setUser } from "../../features/auth/authSlice";
+
 function EditProfileModal({
     user,
     onClose,
-    type
+    type,
 }) {
 
-    const dispatch =
-        useDispatch();
+    const dispatch = useDispatch();
 
-    const [loading, setLoading] =
-        useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const handleUpdate =
-        async (data) => {
+    const handleUpdate = async (data) => {
 
-            try {
+        try {
 
-                setLoading(true);
+            setLoading(true);
 
-                const response =
-                    await updateProfile(
-                        data
+            const {
+                avatarFile,
+                coverImageFile,
+                ...profileData
+            } = data;
+
+
+            const profileResponse =
+                await updateProfile(profileData);
+
+            let updatedUser =
+                profileResponse.data.data;
+
+            if (avatarFile) {
+
+                const avatarResponse =
+                    await updateAvatar(
+                        avatarFile
                     );
 
-
-                dispatch(
-                    setUser(
-                        response.data.data
-                    )
-                );
-
-
-                onClose();
-
-            } catch (error) {
-
-                console.log(error);
-
-            } finally {
-
-                setLoading(false);
+                updatedUser = {
+                    ...updatedUser,
+                    avatar:
+                        avatarResponse.data.data.avatar,
+                };
 
             }
 
-        };
+
+            if (coverImageFile) {
+
+                const coverResponse =
+                    await updateCoverImage(
+                        coverImageFile
+                    );
+
+                updatedUser = {
+                    ...updatedUser,
+                    coverImage:
+                        coverResponse.data.data.coverImage,
+                };
+
+            }
+
+            dispatch(
+                setUser(updatedUser)
+            );
+
+            onClose();
+
+        }
+        catch (error) {
+
+            console.error(error);
+
+            alert(
+                error?.response?.data?.message ||
+                "Failed to update profile."
+            );
+
+        }
+        finally {
+
+            setLoading(false);
+
+        }
+
+    };
 
     return (
+
         <div
             className="
             fixed
@@ -78,19 +113,19 @@ function EditProfileModal({
 
             <div
                 className="
-    w-full
-    max-w-2xl
-    max-h-[90vh]
-    overflow-y-auto
-    scrollbar-thin
-scrollbar-thumb-slate-700
-scrollbar-track-transparent
-    bg-slate-950
-    border
-    border-slate-800
-    rounded-3xl
-    p-6
-    "
+                w-full
+                max-w-2xl
+                max-h-[90vh]
+                overflow-y-auto
+                scrollbar-thin
+                scrollbar-thumb-slate-700
+                scrollbar-track-transparent
+                bg-slate-950
+                border
+                border-slate-800
+                rounded-3xl
+                p-6
+                "
             >
 
                 <div
@@ -117,11 +152,11 @@ scrollbar-track-transparent
                     </h2>
 
                     <button
-                        onClick={
-                            onClose
-                        }
+                        onClick={onClose}
                         className="
                         text-slate-400
+                        hover:text-white
+                        transition
                         "
                     >
                         ✕
@@ -130,37 +165,37 @@ scrollbar-track-transparent
                 </div>
 
                 {
-                    type === "socials" ? (
 
-                        <SocialLinksForm
-                            user={user}
-                            onSubmit={
-                                handleUpdate
-                            }
-                            loading={
-                                loading
-                            }
-                        />
+                    type === "socials"
 
-                    ) : (
+                        ? (
 
-                        <EditProfileForm
-                            user={user}
-                            onSubmit={
-                                handleUpdate
-                            }
-                            loading={
-                                loading
-                            }
-                        />
+                            <SocialLinksForm
+                                user={user}
+                                onSubmit={handleUpdate}
+                                loading={loading}
+                            />
 
-                    )
+                        )
+
+                        : (
+
+                            <EditProfileForm
+                                user={user}
+                                onSubmit={handleUpdate}
+                                loading={loading}
+                            />
+
+                        )
+
                 }
 
             </div>
 
         </div>
+
     );
+
 }
 
 export default EditProfileModal;

@@ -71,7 +71,14 @@ projectSchema.index({
 projectSchema.index({
    createdAt:-1
 })
+projectSchema.index({
+    title: "text",
+    description: "text"
+});
 
+projectSchema.index({
+    techStack: 1
+});
 
 export const Project = mongoose.model("Project", projectSchema)
 
