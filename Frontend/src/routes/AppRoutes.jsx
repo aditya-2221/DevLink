@@ -9,7 +9,7 @@ import AuthLayout from "../layouts/AuthLayout";
 import Dashboard from "../pages/dashboard/Dashboard";
 import Register from "../pages/register/Register";
 
-import Projects from "../pages/projects/projects";
+import Projects from "../pages/projects/Projects";
 import CreateProject from "../pages/projects/CreateProject";
 import ProjectDetails from "../pages/projects/ProjectDetails";
 import EditProject from "../pages/projects/EditProject";
