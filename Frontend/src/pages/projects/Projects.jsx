@@ -157,7 +157,7 @@ function Projects() {
 
     const timer = setTimeout(() => {
       setShowLoader(false);
-    }, 1800);
+    }, 1200);
 
     return () => clearTimeout(timer);
   }, [loading]);
