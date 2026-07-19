@@ -23,6 +23,7 @@ import {
 
 import { useNavigate } from "react-router-dom";
 import { FiPlus } from "react-icons/fi";
+import DevLinkLoader from "../../components/loader/DevLinkLoader";
 
 function Recruitments() {
     const dispatch = useDispatch();
@@ -48,6 +49,21 @@ function Recruitments() {
     } = useSelector(
         (state) => state.recruitment
     );
+
+    const [showLoader, setShowLoader] = useState(false);
+
+    useEffect(() => {
+        if (loading) {
+            setShowLoader(true);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setShowLoader(false);
+        }, 1800);
+
+        return () => clearTimeout(timer);
+    }, [loading]);
 
     const fetchData = async () => {
         try {
@@ -605,12 +621,8 @@ duration-300
         );
     };
 
-    if (loading) {
-        return (
-            <h1 className="text-white">
-                Loading...
-            </h1>
-        );
+    if (showLoader) {
+        return <DevLinkLoader progress={100} />;
     }
 
     if (error) {

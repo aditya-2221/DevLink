@@ -10,6 +10,7 @@ import {
   setPagination
 } from "../../features/projects/projectSlice";
 import { useNavigate } from "react-router-dom";
+import DevLinkLoader from "../../components/loader/DevLinkLoader";
 
 function Projects() {
 
@@ -146,12 +147,25 @@ function Projects() {
     (state) => state.projects
   );
 
+  const [showLoader, setShowLoader] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      setShowLoader(true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowLoader(false);
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [loading]);
 
 
 
-
-  if (loading) {
-    return <h1>Loading Projects...</h1>;
+  if (showLoader) {
+    return <DevLinkLoader progress={100} />;
   }
 
   if (error) {
