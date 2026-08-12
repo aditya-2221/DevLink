@@ -9,6 +9,8 @@ import SkillsCard from "../../components/cards/SkillsCard";
 import EducationCard from "../../components/cards/EducationCard";
 import ProfileProjects from "../../components/cards/ProfileProjects";
 
+import TeamSkeleton from "../../components/ui/TeamSkeleton";
+
 import { getUserProfile } from "../../services/userService";
 
 import useChat from "../../hooks/useChat";
@@ -50,8 +52,7 @@ function UserProfile() {
 
     });
 
-    const isOwner =
-        currentUser?.username === user?.username;
+    const isOwner =currentUser?.username === user?.username;
 
     const fetchChatStatus = async (userId) => {
 
@@ -139,18 +140,22 @@ function UserProfile() {
     };
 
     if (loading) {
-
-        return (
-
-            <div className="text-white">
-
-                Loading Profile...
-
-            </div>
-
-        );
-
-    }
+    return (
+      <div
+        className="
+                grid
+                grid-cols-1
+                md:grid-cols-2
+                xl:grid-cols-3
+                gap-6
+            "
+      >
+        {[...Array(6)].map((_, index) => (
+          <TeamSkeleton key={index} />
+        ))}
+      </div>
+    );
+  }
 
     if (error) {
 

@@ -12,12 +12,16 @@ import logo from "../../assets/devlink-logo.png";
 
 import NavItem from "./NavItem";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+
+
 
 
 const Sidebar = () => {
   const { user } = useSelector(
     (state) => state.auth
   )
+  const navigate = useNavigate()
   return (
     <aside className="
 w-64
@@ -103,6 +107,9 @@ backdrop-blur-xl
               src={user?.avatar}
               alt={user?.fullName}
               className="w-11 h-11 rounded-full object-cover"
+              onClick={()=>{
+                navigate("/profile")
+              }}
             />
 
             <span
