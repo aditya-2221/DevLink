@@ -53,8 +53,7 @@ const sendChatRequest = asyncHandler(async (req, res) => {
 
         }
 
-        const conversation =
-            await conversationService.createDirectConversation(
+        const conversation =await conversationService.createDirectConversation(
 
                 req.user._id,
 
