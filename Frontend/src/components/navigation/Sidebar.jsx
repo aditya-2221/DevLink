@@ -36,6 +36,7 @@ backdrop-blur-xl
             src={logo}
             alt="DevLink"
             className="w-15 h-15 drop-shadow-[0_0_12px_rgba(59,130,246,0.7)]"
+            onClick={()=>{navigate("/")}}
           />
 
           <h1 className="text-2xl font-bold text-white">
