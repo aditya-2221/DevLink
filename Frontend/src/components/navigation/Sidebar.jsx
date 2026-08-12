@@ -31,12 +31,12 @@ bg-[linear-gradient(180deg,#071224_0%,#040b18_100%)]
 backdrop-blur-xl
 ">
       <div className="h-16 flex items-center px-6 border-b border-slate-800">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3  cursor-pointer" onClick={()=>{navigate("/")}}>
           <img
             src={logo}
             alt="DevLink"
             className="w-15 h-15 drop-shadow-[0_0_12px_rgba(59,130,246,0.7)]"
-            onClick={()=>{navigate("/")}}
+            
           />
 
           <h1 className="text-2xl font-bold text-white">
