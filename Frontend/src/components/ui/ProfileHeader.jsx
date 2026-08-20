@@ -21,7 +21,7 @@ function ProfileHeader({
     user,
     isOwner = false
 }) {
-
+    console.log(user.profileCompletion)
 
 
     const hasSocials = user?.github || user?.linkedin || user?.portfolio;
