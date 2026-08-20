@@ -262,40 +262,8 @@ const LoginForm = () => {
                         </svg>
                     )}
                 </button>
-                {/* Divider */}
-                <div className="relative flex items-center py-3">
-                    <div className="flex-grow border-t border-white/10"></div>
-
-                    <span className="mx-4 text-xs text-gray-500 uppercase tracking-wider">
-                        or continue with
-                    </span>
-
-                    <div className="flex-grow border-t border-white/10"></div>
-                </div>
-
-                {/* Social Buttons */}
-                <div className="grid grid-cols-3 gap-3">
-                    <button
-                        type="button"
-                        className="py-4 rounded-xl bg-[#0B1225] border border-white/10 text-sm text-gray-300 hover:border-blue-500 transition"
-                    >
-                        GitHub
-                    </button>
-
-                    <button
-                        type="button"
-                        className="py-4 rounded-xl bg-[#0B1225] border border-white/10 text-sm text-gray-300 hover:border-blue-500 transition"
-                    >
-                        Google
-                    </button>
-
-                    <button
-                        type="button"
-                        className="py-4 rounded-xl bg-[#0B1225] border border-white/10 text-sm text-gray-300 hover:border-blue-500 transition"
-                    >
-                        Discord
-                    </button>
-                </div>
+                
+                
 
                 {/* Signup */}
                 <div className="text-center pt-6">
