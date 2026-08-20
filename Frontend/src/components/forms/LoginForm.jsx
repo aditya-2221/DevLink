@@ -280,17 +280,7 @@ const LoginForm = () => {
                 </div>
             </form>
 
-            {/* Footer */}
-            <div className="mt-12 pt-6 border-t border-white/10 text-center text-xs text-gray-500">
-                Your data is secure with us. Read our{" "}
-                <a href="#" className="text-blue-400 hover:underline">
-                    Privacy Policy
-                </a>{" "}
-                and{" "}
-                <a href="#" className="text-blue-400 hover:underline">
-                    Terms of Service
-                </a>
-            </div>
+            
         </div>
     );
 };
