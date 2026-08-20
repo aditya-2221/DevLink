@@ -2,7 +2,7 @@ import React, { useState } from "react"
 import { useDispatch } from "react-redux"
 import { useNavigate } from "react-router-dom"
 import { Link } from "react-router-dom"
-import { loginUser } from "../../services/authService"
+import { loginUser , getCurrentUser} from "../../services/authService"
 import {
     setUser,
     setAuthLoading
@@ -37,10 +37,15 @@ const LoginForm = () => {
                 username: !loginField.includes("@") ? loginField.toLowerCase() : undefined,
                 password,
             })
+            const userResponse =await getCurrentUser();
 
             dispatch(
-                setUser(response.data.data.user)
-            )
+                setUser(
+                    userResponse.data.data
+                )
+            );
+
+            
 
             navigate("/")
 
@@ -262,8 +267,8 @@ const LoginForm = () => {
                         </svg>
                     )}
                 </button>
-                
-                
+
+
 
                 {/* Signup */}
                 <div className="text-center pt-6">
@@ -280,7 +285,7 @@ const LoginForm = () => {
                 </div>
             </form>
 
-            
+
         </div>
     );
 };
